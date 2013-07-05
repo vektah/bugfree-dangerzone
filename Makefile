@@ -13,5 +13,5 @@ cleanvendor:
 	@rm -rf composer.lock
 	@rm -rf vendor
 
-test:
+test: depends
 	@$(PHPUNIT_BIN)
