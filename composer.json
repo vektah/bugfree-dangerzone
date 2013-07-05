@@ -1,0 +1,14 @@
+{
+	"require": {
+		"nikic/php-parser": "0.9.3"
+	},
+
+	"require-dev": {
+		"phake/phake": "*",
+		"phpunit/phpunit": "3.7.*"
+	},
+
+	"autoload": {
+		"psr-0": {"bugfree\\": "src/main/"}
+	}
+}
