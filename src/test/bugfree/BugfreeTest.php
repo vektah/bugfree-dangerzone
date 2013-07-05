@@ -9,7 +9,8 @@ class FileAnalyzerTest extends \PHPUnit_Framework_TestCase
 {
     private $resolver;
 
-    public function setUp() {
+    public function setUp()
+    {
         $this->resolver = Phake::mock(Resolver::_CLASS);
         Phake::when($this->resolver)->isValid()->thenReturn(true);
     }
@@ -23,7 +24,7 @@ class FileAnalyzerTest extends \PHPUnit_Framework_TestCase
             }
         }
 
-        $this->assertTrue($found, 'Element not found in array');
+        $this->assertTrue($found, "Element '$string' not found in array: " . print_r($array, true));
     }
 
     public function testNamespaceError()
@@ -48,6 +49,108 @@ class FileAnalyzerTest extends \PHPUnit_Framework_TestCase
 
         $analyzer = new Bugfree('test', '<?php namespace foo; use asdf, hjkl;', $this->resolver);
 
-        $this->assertArrayValuesContains($analyzer->getErrors(), "Use '\\asdf' cannot be resolved");
+        $this->assertTrue(true);
+        $this->assertArrayValuesContains($analyzer->getErrors(), "Use '\\asdf' could not be resolved");
+    }
+
+    public function useProvider()
+    {
+        return [
+            [[
+                    'invalid'   => ['\testns\DoesNotExist'],
+                    'valid'     => [],
+                    'type'      => 'DoesNotExist',
+                    'errors'    => ["Type '\\testns\\DoesNotExist' could not be resolved"],
+                    'warnings'  => [],
+            ]],
+            [[
+                    'invalid'   => [],
+                    'valid'     => ['\testns\DoesNotExist'],
+                    'type'      => 'DoesNotExist',
+                    'errors'    => [],
+                    'warnings'  => [],
+            ]],
+            [[
+                    'invalid'   => ['\testns\DoesNotExist'],
+                    'valid'     => [],
+                    'type'      => '\testns\DoesNotExist',
+                    'errors'    => ["Type '\\testns\\DoesNotExist' could not be resolved"],
+                    'warnings'  => ['Use of qualified type names is discouraged.'],
+            ]],
+            [[
+                    'invalid'   => [],
+                    'valid'     => ['\testns\DoesNotExist'],
+                    'type'      => '\testns\DoesNotExist',
+                    'errors'    => [],
+                    'warnings'  => ['Use of qualified type names is discouraged.'],
+            ]],
+            [[
+                    'invalid'   => ['\foo\bar\baz\DoesNotExist'],
+                    'valid'     => [],
+                    'type'      => 'baz\DoesNotExist',
+                    'errors'    => ["Type '\\foo\\bar\\baz\\DoesNotExist' could not be resolved"],
+                    'warnings'  => ['Use of qualified type names is discouraged.'],
+            ]],
+            [[
+                    'invalid'   => [],
+                    'valid'     => ['\foo\bar\baz\DoesNotExist'],
+                    'type'      => 'baz\DoesNotExist',
+                    'errors'    => [],
+                    'warnings'  => ['Use of qualified type names is discouraged.'],
+            ]],
+            [[
+                    'invalid'   => [],
+                    'valid'     => [],
+                    'type'      => 'boo\DoesNotExist',
+                    'errors'    => ["Type 'boo\\DoesNotExist' could not be resolved"],
+                    'warnings'  => ['Use of qualified type names is discouraged.'],
+            ]],
+
+        ];
+    }
+
+    /**
+     * @dataProvider useProvider
+     */
+    public function testResolutionOnMethod(array $options)
+    {
+        foreach ($options['invalid'] as $invalid) {
+            Phake::when($this->resolver)->isValid($invalid)->thenReturn(false);
+        }
+
+        foreach ($options['valid'] as $valid) {
+            Phake::when($this->resolver)->isValid($valid)->thenReturn(true);
+        }
+
+        Phake::when($this->resolver)->isValid('\\foo\\bar\\baz')->thenReturn(true);
+
+        $src = "<?php namespace testns;
+        use foo\\bar\\baz;
+
+        function asdf({$options['type']} \$foo) {}
+        ";
+        $analyzer = new Bugfree('test', $src, $this->resolver);
+
+        foreach ($options['errors'] as $error) {
+            $this->assertArrayValuesContains($analyzer->getErrors(), $error);
+        }
+        $this->assertEquals(
+            count($options['errors']),
+            count($analyzer->getErrors()),
+            print_r($analyzer->getErrors(), true)
+        );
+
+        foreach ($options['warnings'] as $warning) {
+            $this->assertArrayValuesContains($analyzer->getWarnings(), $warning);
+        }
+        $this->assertEquals(
+            count($options['warnings']),
+            count($analyzer->getWarnings()),
+            print_r($analyzer->getWarnings(), true)
+        );
+
+        foreach (array_merge($options['invalid'], $options['valid']) as $resolve_call) {
+            Phake::verify($this->resolver)->isValid($resolve_call);
+        }
     }
 }
