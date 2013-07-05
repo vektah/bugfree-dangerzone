@@ -65,7 +65,7 @@ class Bugfree
                 $this->parseFunction($node);
                 break;
             default:
-                print_r($node);
+//                print_r($node);
                 break;
         }
     }
