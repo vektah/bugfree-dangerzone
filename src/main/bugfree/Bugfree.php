@@ -3,53 +3,31 @@
 namespace bugfree;
 
 
-class Bugfree {
+class Bugfree
+{
+    /** @var string */
     private $name;
+
+    /** @var string[] */
     private $errors = [];
+
+    /** @var string[] */
     private $warnings = [];
 
-    /**
-     * @param \PHPParser_Node_Stmt $statement
-     * @param string $message
-     */
-    private function error($statement, $message)
-    {
-        $locator = $this->name;
+    /** @var Resolver */
+    private $resolver = null;
 
-        if ($statement) {
-            $locator .= ":{$statement->getLine()}";
-        }
-
-        $this->errors[] = "$locator $message";
-    }
-
-    private function warning(\PHPParser_Node_Stmt $statement, $message)
-    {
-        $locator = $this->name;
-
-        if ($statement) {
-            $locator .= ":{$statement->getLine()}";
-        }
-
-        $this->warnings[] = "$locator $message";
-    }
-
-    public function getErrors()
-    {
-        return $this->errors;
-    }
-
-    public function getWarnings()
-    {
-        return $this->warnings;
-    }
+    private $uses = [];
 
     /**
-     * @param string $source the source code to analyze
+     * @param string   $name
+     * @param string   $source the source code to analyze
+     * @param Resolver $resolver resolver to use when checking use statements.
      */
-    public function __construct($name, $source)
+    public function __construct($name, $source, Resolver $resolver)
     {
         $this->name = $name;
+        $this->resolver = $resolver;
         $parser = new \PHPParser_Parser(new \PHPParser_Lexer());
 
         $source = $parser->parse($source);
@@ -65,7 +43,6 @@ class Bugfree {
         }
 
 
-
         foreach ($statements as $statement) {
             if ($statement instanceof \PHPParser_Node_Stmt_Use) {
                 $this->parseUse($statement);
@@ -78,10 +55,14 @@ class Bugfree {
         $use_count = 0;
         foreach ($use->uses as $use) {
             if ($use instanceof \PHPParser_Node_Stmt_UseUse) {
-                print_r($use->name);
-                print_r($use->alias);
+                if (!$this->resolver->isValid("\\$use->name")) {
+                    $this->error($use, "Use '\\{$use->name}' cannot be resolved");
+                }
+//                print_r($use->name);
+//                print_r($use->alias);
             } else {
-                $this->error($use, "Malformed use");
+                // I don't know if this error can ever be generated, as it should be a parse error...
+                $this->error($use, "Malformed use statement");
                 return;
             }
             $use_count++;
@@ -89,5 +70,37 @@ class Bugfree {
         if ($use_count > 1) {
             $this->warning($use, "Multiple uses in one statement is discouraged");
         }
+    }
+
+    /**
+     * @param \PHPParser_Node_Stmt $statement
+     * @param string               $message
+     */
+    private function error($statement, $message)
+    {
+        $locator = $this->name;
+        if ($statement) {
+            $locator .= ":{$statement->getLine()}";
+        }
+        $this->errors[] = "$locator $message";
+    }
+
+    private function warning(\PHPParser_Node_Stmt $statement, $message)
+    {
+        $locator = $this->name;
+        if ($statement) {
+            $locator .= ":{$statement->getLine()}";
+        }
+        $this->warnings[] = "$locator $message";
+    }
+
+    public function getErrors()
+    {
+        return $this->errors;
+    }
+
+    public function getWarnings()
+    {
+        return $this->warnings;
     }
 }

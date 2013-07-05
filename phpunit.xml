@@ -1,0 +1,29 @@
+<phpunit backupGlobals="true"
+         backupStaticAttributes="false"
+         cacheTokens="false"
+         convertErrorsToExceptions="true"
+         convertNoticesToExceptions="true"
+         convertWarningsToExceptions="true"
+         forceCoversAnnotation="false"
+         mapTestClassNameToCoveredClassName="false"
+         processIsolation="true"
+         stopOnError="false"
+         stopOnFailure="false"
+         stopOnIncomplete="false"
+         stopOnSkipped="false"
+         strict="true"
+         verbose="false">
+
+    <testsuites>
+      <testsuite name="Unit Tests">
+        <directory>src/test/</directory>
+      </testsuite>
+    </testsuites>
+
+    <!-- Setting this filter speeds up coverage by quite a bit. Seems phpunit tries to generate coverage for vendor... -->
+    <filter>
+      <whitelist processUncoveredFilesFromWhitelist="true">
+        <directory suffix=".php">src/main</directory>
+      </whitelist>
+    </filter>
+</phpunit>

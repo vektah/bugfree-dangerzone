@@ -1,4 +1,5 @@
 COMPOSER_BIN := composer
+PHPUNIT_BIN := ./vendor/bin/phpunit
 
 depends: vendor
 
@@ -11,3 +12,6 @@ vendor: composer.json
 cleanvendor:
 	@rm -rf composer.lock
 	@rm -rf vendor
+
+test:
+	@$(PHPUNIT_BIN)
