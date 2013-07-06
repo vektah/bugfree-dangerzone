@@ -64,6 +64,9 @@ class Bugfree
             case 'PHPParser_Node_Stmt_Function':
                 $this->parseFunction($node);
                 break;
+            case 'PHPParser_Node_Stmt_ClassMethod':
+                $this->parseMethod($node);
+                break;
             case 'PHPParser_Node_Stmt_Class':
                 $this->parseClass($node);
                 break;
@@ -106,6 +109,15 @@ class Bugfree
         }
     }
 
+    private function parseMethod(\PHPParser_Node_Stmt_ClassMethod $fn)
+    {
+        foreach ($fn->params as $param) {
+            if ($param->type instanceof \PHPParser_Node_Name) {
+                $this->resolveClass($fn, $param->type);
+            }
+        }
+    }
+
     private function parseClass(\PHPParser_Node_Stmt_Class $class)
     {
         if ($class->implements) {
@@ -116,6 +128,10 @@ class Bugfree
 
         if ($class->extends) {
             $this->resolveClass($class, $class->extends);
+        }
+
+        foreach($class->stmts as $child) {
+            $this->parse($child);
         }
     }
 
@@ -144,10 +160,6 @@ class Bugfree
             $qualified_name = implode("\\", $parts);
         }
 
-        if (!$qualified_name) {
-            $this->error($statement, "Type '{$type->toString()}' could not be resolved.");
-            return;
-        }
         // Now that we know the qualified name lets make sure its valid.
         if (!$this->resolver->isValid($qualified_name)) {
             $this->error($statement, "Type '$qualified_name' could not be resolved.");

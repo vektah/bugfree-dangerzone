@@ -269,4 +269,53 @@ class FileAnalyzerTest extends \PHPUnit_Framework_TestCase
             Phake::verify($this->resolver)->isValid($resolveCall);
         }
     }
+
+    /**
+     * @dataProvider useProvider
+     */
+    public function testMethod($options)
+    {
+        foreach ($options['invalid'] as $invalid) {
+            Phake::when($this->resolver)->isValid($invalid)->thenReturn(false);
+        }
+
+        foreach ($options['valid'] as $valid) {
+            Phake::when($this->resolver)->isValid($valid)->thenReturn(true);
+        }
+
+        Phake::when($this->resolver)->isValid('\\foo\\bar\\baz')->thenReturn(true);
+        Phake::when($this->resolver)->isValid('\\foo\\Thing')->thenReturn(true);
+
+        $src = "<?php namespace testns;
+        use foo\\bar\\baz;
+        use foo\\Thing;
+
+        class far {
+            public function boo({$options['type']} \$foo) {}
+        }
+        ";
+        $analyzer = new Bugfree('test', $src, $this->resolver);
+
+        foreach ($options['errors'] as $error) {
+            $this->assertArrayValuesContains($analyzer->getErrors(), $error);
+        }
+        $this->assertEquals(
+            count($options['errors']),
+            count($analyzer->getErrors()),
+            print_r($analyzer->getErrors(), true)
+        );
+
+        foreach ($options['warnings'] as $warning) {
+            $this->assertArrayValuesContains($analyzer->getWarnings(), $warning);
+        }
+        $this->assertEquals(
+            count($options['warnings']),
+            count($analyzer->getWarnings()),
+            print_r($analyzer->getWarnings(), true)
+        );
+
+        foreach (array_merge($options['invalid'], $options['valid']) as $resolveCall) {
+            Phake::verify($this->resolver)->isValid($resolveCall);
+        }
+    }
 }
