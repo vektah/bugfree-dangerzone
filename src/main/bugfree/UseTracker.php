@@ -43,4 +43,12 @@ class UseTracker
     {
         return $this->useCount;
     }
+
+    /**
+     * Marks this use statement as being used in the source file.
+     */
+    public function markUsed()
+    {
+        $this->useCount++;
+    }
 }
