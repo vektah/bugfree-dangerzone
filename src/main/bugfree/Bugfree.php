@@ -25,7 +25,8 @@ class Bugfree
     /** @var UseTracker[] UseTrackers keyed on alias */
     private $uses = [];
 
-    private $namespace;
+    /** @var string the current namespace, '\' for no namespace */
+    private $namespace = '\\';
 
     /**
      * @param string   $name
@@ -38,26 +39,21 @@ class Bugfree
         $this->resolver = $resolver;
         $parser = new \PHPParser_Parser(new \PHPParser_Lexer());
 
-        $source = $parser->parse($source);
-
-        // Top level nodes in a source file should always be a namespace.
-        if (count($source) != 1 || !$source[0] instanceof \PHPParser_Node_Stmt_Namespace) {
-            $this->error(null, 'Every source file should have a namespace');
-            $this->namespace = '\\';
-            $statements = $source;
-        } else {
-            $this->namespace = '\\' . $source[0]->name;
-            $statements = $source[0]->stmts;
+        foreach ($parser->parse($source) as $statement) {
+            $this->parse($statement);
         }
 
-        foreach ($statements as $statement) {
-            $this->parse($statement);
+        if ($this->namespace == '\\') {
+            $this->error(null, 'Every source file should have a namespace');
         }
     }
 
     private function parse(\PHPParser_Node $node)
     {
         switch(get_class($node)) {
+            case 'PHPParser_Node_Stmt_Namespace':
+                $this->parseNamespace($node);
+                break;
             case 'PHPParser_Node_Stmt_Use':
                 $this->parseUse($node);
                 break;
@@ -73,6 +69,15 @@ class Bugfree
             case 'PHPParser_Node_Stmt_TryCatch':
                 $this->parseCatch($node);
                 break;
+        }
+    }
+
+    private function parseNamespace(\PHPParser_Node_Stmt_Namespace $namespace)
+    {
+        $this->namespace = '\\' . $namespace->name;
+
+        foreach ($namespace->stmts as $statement) {
+            $this->parse($statement);
         }
     }
 

@@ -49,8 +49,28 @@ class FileAnalyzerTest extends \PHPUnit_Framework_TestCase
 
         $analyzer = new Bugfree('test', '<?php namespace foo; use asdf, hjkl;', $this->resolver);
 
-        $this->assertTrue(true);
         $this->assertArrayValuesContains($analyzer->getErrors(), "Use '\\asdf' could not be resolved");
+    }
+
+    public function testMultipleNamespaces()
+    {
+        Phake::when($this->resolver)->isValid('\foo\Foo')->thenReturn(false);
+        Phake::when($this->resolver)->isValid('\baz\Baz')->thenReturn(false);
+
+        $src = "<?php
+        namespace foo {
+            function test(Foo \$f) {}
+        }
+
+        namespace baz {
+            function test(Baz \$f) {}
+        }
+        ";
+
+        $analyzer = new Bugfree('test', $src, $this->resolver);
+
+        $this->assertArrayValuesContains($analyzer->getErrors(), "Type '\\foo\\Foo' could not be resolved");
+        $this->assertArrayValuesContains($analyzer->getErrors(), "Type '\\baz\\Baz' could not be resolved");
     }
 
     public function useProvider()
