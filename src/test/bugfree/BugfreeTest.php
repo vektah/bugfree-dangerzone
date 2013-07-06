@@ -57,55 +57,75 @@ class FileAnalyzerTest extends \PHPUnit_Framework_TestCase
     {
         return [
             [[
-                    'invalid'   => ['\testns\DoesNotExist'],
-                    'valid'     => [],
-                    'type'      => 'DoesNotExist',
-                    'errors'    => ["Type '\\testns\\DoesNotExist' could not be resolved"],
-                    'warnings'  => [],
+                'invalid'   => ['\testns\DoesNotExist'],
+                'valid'     => [],
+                'type'      => 'DoesNotExist',
+                'errors'    => ["Type '\\testns\\DoesNotExist' could not be resolved"],
+                'warnings'  => [],
             ]],
             [[
-                    'invalid'   => [],
-                    'valid'     => ['\testns\DoesNotExist'],
-                    'type'      => 'DoesNotExist',
-                    'errors'    => [],
-                    'warnings'  => [],
+                'invalid'   => [],
+                'valid'     => ['\testns\DoesNotExist'],
+                'type'      => 'DoesNotExist',
+                'errors'    => [],
+                'warnings'  => [],
             ]],
             [[
-                    'invalid'   => ['\testns\DoesNotExist'],
-                    'valid'     => [],
-                    'type'      => '\testns\DoesNotExist',
-                    'errors'    => ["Type '\\testns\\DoesNotExist' could not be resolved"],
-                    'warnings'  => ['Use of qualified type names is discouraged.'],
+                'invalid'   => ['\testns\DoesNotExist'],
+                'valid'     => [],
+                'type'      => '\testns\DoesNotExist',
+                'errors'    => ["Type '\\testns\\DoesNotExist' could not be resolved"],
+                'warnings'  => ['Use of qualified type names is discouraged.'],
             ]],
             [[
-                    'invalid'   => [],
-                    'valid'     => ['\testns\DoesNotExist'],
-                    'type'      => '\testns\DoesNotExist',
-                    'errors'    => [],
-                    'warnings'  => ['Use of qualified type names is discouraged.'],
+                'invalid'   => [],
+                'valid'     => ['\testns\DoesNotExist'],
+                'type'      => '\testns\DoesNotExist',
+                'errors'    => [],
+                'warnings'  => ['Use of qualified type names is discouraged.'],
             ]],
             [[
-                    'invalid'   => ['\foo\bar\baz\DoesNotExist'],
-                    'valid'     => [],
-                    'type'      => 'baz\DoesNotExist',
-                    'errors'    => ["Type '\\foo\\bar\\baz\\DoesNotExist' could not be resolved"],
-                    'warnings'  => ['Use of qualified type names is discouraged.'],
+                'invalid'   => ['\foo\bar\baz\DoesNotExist'],
+                'valid'     => [],
+                'type'      => 'baz\DoesNotExist',
+                'errors'    => ["Type '\\foo\\bar\\baz\\DoesNotExist' could not be resolved"],
+                'warnings'  => ['Use of qualified type names is discouraged.'],
             ]],
             [[
-                    'invalid'   => [],
-                    'valid'     => ['\foo\bar\baz\DoesNotExist'],
-                    'type'      => 'baz\DoesNotExist',
-                    'errors'    => [],
-                    'warnings'  => ['Use of qualified type names is discouraged.'],
+                'invalid'   => [],
+                'valid'     => ['\foo\bar\baz\DoesNotExist'],
+                'type'      => 'baz\DoesNotExist',
+                'errors'    => [],
+                'warnings'  => ['Use of qualified type names is discouraged.'],
             ]],
             [[
-                    'invalid'   => [],
-                    'valid'     => [],
-                    'type'      => 'boo\DoesNotExist',
-                    'errors'    => ["Type 'boo\\DoesNotExist' could not be resolved"],
-                    'warnings'  => ['Use of qualified type names is discouraged.'],
+                'invalid'   => [],
+                'valid'     => [],
+                'type'      => 'boo\DoesNotExist',
+                'errors'    => ["Type '\\testns\\boo\\DoesNotExist' could not be resolved"],
+                'warnings'  => ['Use of qualified type names is discouraged.'],
             ]],
-
+            [[
+                'invalid'   => [],
+                'valid'     => [],
+                'type'      => 'Thing',
+                'errors'    => [],
+                'warnings'  => [],
+            ]],
+            [[
+                'invalid'   => ['\Thing'],
+                'valid'     => [],
+                'type'      => '\Thing',
+                'errors'    => ["Type '\\Thing' could not be resolved"],
+                'warnings'  => [],
+            ]],
+            [[
+                'invalid'   => [],
+                'valid'     => ['\Thing'],
+                'type'      => '\Thing',
+                'errors'    => [],
+                'warnings'  => [],
+            ]],
         ];
     }
 
@@ -123,9 +143,11 @@ class FileAnalyzerTest extends \PHPUnit_Framework_TestCase
         }
 
         Phake::when($this->resolver)->isValid('\\foo\\bar\\baz')->thenReturn(true);
+        Phake::when($this->resolver)->isValid('\\foo\\Thing')->thenReturn(true);
 
         $src = "<?php namespace testns;
         use foo\\bar\\baz;
+        use foo\\Thing;
 
         function asdf({$options['type']} \$foo) {}
         ";
@@ -149,8 +171,102 @@ class FileAnalyzerTest extends \PHPUnit_Framework_TestCase
             print_r($analyzer->getWarnings(), true)
         );
 
-        foreach (array_merge($options['invalid'], $options['valid']) as $resolve_call) {
-            Phake::verify($this->resolver)->isValid($resolve_call);
+        foreach (array_merge($options['invalid'], $options['valid']) as $resolveCall) {
+            Phake::verify($this->resolver)->isValid($resolveCall);
+        }
+    }
+
+    /**
+     * @dataProvider useProvider
+     */
+    public function testClassImplements($options)
+    {
+        foreach ($options['invalid'] as $invalid) {
+            Phake::when($this->resolver)->isValid($invalid)->thenReturn(false);
+        }
+
+        foreach ($options['valid'] as $valid) {
+            Phake::when($this->resolver)->isValid($valid)->thenReturn(true);
+        }
+
+        Phake::when($this->resolver)->isValid('\\foo\\bar\\baz')->thenReturn(true);
+        Phake::when($this->resolver)->isValid('\\foo\\Thing')->thenReturn(true);
+
+        $src = "<?php namespace testns;
+        use foo\\bar\\baz;
+        use foo\\Thing;
+
+        class far implements {$options['type']} {}
+        ";
+        $analyzer = new Bugfree('test', $src, $this->resolver);
+
+        foreach ($options['errors'] as $error) {
+            $this->assertArrayValuesContains($analyzer->getErrors(), $error);
+        }
+        $this->assertEquals(
+            count($options['errors']),
+            count($analyzer->getErrors()),
+            print_r($analyzer->getErrors(), true)
+        );
+
+        foreach ($options['warnings'] as $warning) {
+            $this->assertArrayValuesContains($analyzer->getWarnings(), $warning);
+        }
+        $this->assertEquals(
+            count($options['warnings']),
+            count($analyzer->getWarnings()),
+            print_r($analyzer->getWarnings(), true)
+        );
+
+        foreach (array_merge($options['invalid'], $options['valid']) as $resolveCall) {
+            Phake::verify($this->resolver)->isValid($resolveCall);
+        }
+    }
+
+    /**
+     * @dataProvider useProvider
+     */
+    public function testClassExtends($options)
+    {
+        foreach ($options['invalid'] as $invalid) {
+            Phake::when($this->resolver)->isValid($invalid)->thenReturn(false);
+        }
+
+        foreach ($options['valid'] as $valid) {
+            Phake::when($this->resolver)->isValid($valid)->thenReturn(true);
+        }
+
+        Phake::when($this->resolver)->isValid('\\foo\\bar\\baz')->thenReturn(true);
+        Phake::when($this->resolver)->isValid('\\foo\\Thing')->thenReturn(true);
+
+        $src = "<?php namespace testns;
+        use foo\\bar\\baz;
+        use foo\\Thing;
+
+        class far extends {$options['type']} {}
+        ";
+        $analyzer = new Bugfree('test', $src, $this->resolver);
+
+        foreach ($options['errors'] as $error) {
+            $this->assertArrayValuesContains($analyzer->getErrors(), $error);
+        }
+        $this->assertEquals(
+            count($options['errors']),
+            count($analyzer->getErrors()),
+            print_r($analyzer->getErrors(), true)
+        );
+
+        foreach ($options['warnings'] as $warning) {
+            $this->assertArrayValuesContains($analyzer->getWarnings(), $warning);
+        }
+        $this->assertEquals(
+            count($options['warnings']),
+            count($analyzer->getWarnings()),
+            print_r($analyzer->getWarnings(), true)
+        );
+
+        foreach (array_merge($options['invalid'], $options['valid']) as $resolveCall) {
+            Phake::verify($this->resolver)->isValid($resolveCall);
         }
     }
 }

@@ -6,10 +6,11 @@ namespace bugfree;
  * Assumes that an autoloader has been registered and uses get_class() to determine if a class is available. Namespaces
  * are assumed to be directories beneath basedir.
  */
-class AutoloaderResolver implements Resolver {
+class AutoloaderResolver implements Resolver
+{
     private $basedir;
 
-    function __construct($basedir)
+    public function __construct($basedir)
     {
         $this->basedir = $basedir;
     }
@@ -24,12 +25,12 @@ class AutoloaderResolver implements Resolver {
      */
     public function isValid($name)
     {
-        if(class_exists($name)) {
+        if (class_exists($name) || interface_exists($name)) {
             return true;
         }
 
         $filename = str_replace('\\', '/', $name);
-        if(is_dir($this->basedir . "/" . $filename)) {
+        if (is_dir($this->basedir . "/" . $filename)) {
             return true;
         }
 

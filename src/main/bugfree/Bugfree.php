@@ -64,8 +64,8 @@ class Bugfree
             case 'PHPParser_Node_Stmt_Function':
                 $this->parseFunction($node);
                 break;
-            default:
-//                print_r($node);
+            case 'PHPParser_Node_Stmt_Class':
+                $this->parseClass($node);
                 break;
         }
     }
@@ -106,25 +106,42 @@ class Bugfree
         }
     }
 
+    private function parseClass(\PHPParser_Node_Stmt_Class $class)
+    {
+        if ($class->implements) {
+            foreach ($class->implements as $implements) {
+                $this->resolveClass($class, $implements);
+            }
+        }
+
+        if ($class->extends) {
+            $this->resolveClass($class, $class->extends);
+        }
+    }
+
     /**
      * @param \PHPParser_Node_Stmt $statement   The statement that this class was referenced in for error generation.
      * @param \PHPParser_Node_Name $type        The class to resolve.
      */
     private function resolveClass(\PHPParser_Node_Stmt $statement, \PHPParser_Node_Name $type)
     {
-        if (!$type->isUnqualified()) {
+        $qualified_name = null;
+        $parts = $type->parts;
+
+        if (!$type->isUnqualified() && count($parts) !== 1) {
             $this->warning($statement, "Use of qualified type names is discouraged.");
         }
 
-        $qualified_name = null;
         if ($type->isFullyQualified()) {
-            $qualified_name = '\\' . $type->toString();
-        } elseif ($type->isQualified() && isset($this->uses[$type->parts[0]])) {
-            $resolvedPart = $this->uses[$type->parts[0]]->getName();
-            $restOfType = implode('\\', array_slice($type->parts, 1));
-            $qualified_name = "\\$resolvedPart\\$restOfType";
-        } elseif ($type->isUnqualified()) {
-            $qualified_name = $this->namespace . '\\' . $type->parts[0];
+            $qualified_name = "\\{$type->toString()}";
+        } else {
+            if (isset($this->uses[$parts[0]])) {
+                $parts[0] = "\\" . $this->uses[$parts[0]]->getName();
+            } else {
+                $parts[0] = $this->namespace . "\\" . $parts[0];
+            }
+
+            $qualified_name = implode("\\", $parts);
         }
 
         if (!$qualified_name) {
