@@ -70,6 +70,9 @@ class Bugfree
             case 'PHPParser_Node_Stmt_Class':
                 $this->parseClass($node);
                 break;
+            case 'PHPParser_Node_Stmt_TryCatch':
+                $this->parseCatch($node);
+                break;
         }
     }
 
@@ -107,6 +110,10 @@ class Bugfree
                 $this->resolveClass($fn, $param->type);
             }
         }
+
+        foreach ($fn->stmts as $stmt) {
+            $this->parse($stmt);
+        }
     }
 
     private function parseMethod(\PHPParser_Node_Stmt_ClassMethod $fn)
@@ -115,6 +122,10 @@ class Bugfree
             if ($param->type instanceof \PHPParser_Node_Name) {
                 $this->resolveClass($fn, $param->type);
             }
+        }
+
+        foreach ($fn->stmts as $stmt) {
+            $this->parse($stmt);
         }
     }
 
@@ -130,9 +141,17 @@ class Bugfree
             $this->resolveClass($class, $class->extends);
         }
 
-        foreach($class->stmts as $child) {
+        foreach ($class->stmts as $child) {
             $this->parse($child);
         }
+    }
+
+    private function parseCatch(\PHPParser_Node_Stmt_TryCatch $try)
+    {
+        foreach ($try->catches as $catch) {
+            $this->resolveClass($catch, $catch->type);
+        }
+
     }
 
     /**
