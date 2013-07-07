@@ -61,6 +61,16 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
         $this->assertArrayValuesContains($analyzer->getWarnings(), "Use 'asdf' is not being used");
     }
 
+    public function testDuplicateAlias() {
+        $src = '<?php namespace foo;
+            use asdf;
+            use foo\asdf;
+        ';
+        $analyzer = new Bugfree('test', $src, $this->resolver);
+
+        $this->assertArrayValuesContains($analyzer->getErrors(), "Alias 'asdf' is already in use on line 2");
+    }
+
     public function testMultipleNamespaces()
     {
         Phake::when($this->resolver)->isValid('\foo\Foo')->thenReturn(false);

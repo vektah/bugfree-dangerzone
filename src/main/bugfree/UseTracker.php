@@ -11,13 +11,17 @@ class UseTracker
     /** @var string $alias the alias that this uses, usually the last part of the namespace, unless explicity defined */
     private $alias;
 
+    /** @var \PHPParser_Node */
+    private $node;
+
     /** @var int a counter for the number of times this use has been used. */
     private $useCount = 0;
 
-    public function __construct($alias, $name)
+    public function __construct($alias, $name, \PHPParser_Node $node)
     {
         $this->alias = $alias;
         $this->name = $name;
+        $this->node = $node;
     }
 
     /**
@@ -34,6 +38,14 @@ class UseTracker
     public function getName()
     {
         return $this->name;
+    }
+
+    /**
+     * @return \PHPParser_Node
+     */
+    public function getNode()
+    {
+        return $this->node;
     }
 
     /**

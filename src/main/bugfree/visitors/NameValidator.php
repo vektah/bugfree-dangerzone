@@ -110,7 +110,12 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract {
                             $this->bugfree->error($use, "Use '\\{$use->name}' could not be resolved");
                         }
 
-                        $this->aliases[$use->alias] = new UseTracker($use->alias, $use->name);
+                        if(isset($this->aliases[$use->alias])) {
+                            $line = $this->aliases[$use->alias]->getNode()->getLine();
+                            $this->bugfree->error($use, "Alias '{$use->alias}' is already in use on line $line'");
+                        }
+
+                        $this->aliases[$use->alias] = new UseTracker($use->alias, $use->name, $use);
 
                     } else {
                         // I don't know if this error can ever be generated, as it should be a parse error...
