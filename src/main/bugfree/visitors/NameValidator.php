@@ -1,0 +1,212 @@
+<?php
+
+namespace bugfree\visitors;
+
+
+use bugfree\Bugfree;
+use bugfree\Resolver;
+use bugfree\UseTracker;
+
+
+/**
+ * Fairly similar to PHP Parser's NameResolver except:
+ *  - throws up warnings and errors when things smell a little fishy rather then parse errors.
+ *  - Uses a resolver to work out if the given use is valid within your project, ideally by using your PSR-0 autoloader.
+ */
+class NameValidator extends \PHPParser_NodeVisitorAbstract {
+    private $handlers;
+
+    /** @var Resolver */
+    private $resolver = null;
+
+    /** @var string the current namespace, '\' for no namespace */
+    private $namespace = '\\';
+
+    /** @var UseTracker[] UseTrackers keyed on alias */
+    private $aliases = [];
+
+    /** @var Bugfree */
+    private $bugfree;
+
+    /**
+     * @param Bugfree  $bugfree     Instance of bugfree to log errors and warnings against, TODO: split concerns?
+     * @param Resolver $resolver    A resolver to use when resolving classes.
+     */
+    function __construct(Bugfree $bugfree, Resolver $resolver)
+    {
+        $this->bugfree = $bugfree;
+        $this->resolver = $resolver;
+        $this->createHandlers();
+    }
+
+    /**
+     * Because functions cannot be created dynamically in the hash at initialisation time in php this method must be
+     * invoked to create the handlers array on construction. It could be static but that would require passing an
+     * instance through for counting uses and namespaces etc.
+     */
+    private function createHandlers() {
+        $this->handlers = [
+            'PHPParser_Node_Stmt_Namespace' => function(\PHPParser_Node_Stmt_Namespace $namespace) {
+                $this->namespace = '\\' . $namespace->name;
+            },
+            'PHPParser_Node_Stmt_Use' => function(\PHPParser_Node_Stmt_Use $use) {
+                $use_count = 0;
+                foreach ($use->uses as $use) {
+                    if ($use instanceof \PHPParser_Node_Stmt_UseUse) {
+                        if (!$this->resolver->isValid("\\{$use->name}")) {
+                            $this->bugfree->error($use, "Use '\\{$use->name}' could not be resolved");
+                        }
+
+                        $this->aliases[$use->alias] = new UseTracker($use->alias, $use->name);
+
+                    } else {
+                        // I don't know if this error can ever be generated, as it should be a parse error...
+                        $this->bugfree->error($use, "Malformed use statement");
+                        return;
+                    }
+                    $use_count++;
+                }
+                if ($use_count > 1) {
+                    $this->bugfree->warning($use, "Multiple uses in one statement is discouraged");
+                }
+            },
+            'PHPParser_Node_Stmt_Function' => function(\PHPParser_Node_Stmt_Function $function) {
+                foreach ($function->params as $param) {
+                    if ($param->type instanceof \PHPParser_Node_Name) {
+                        $this->resolveClass($function, $param->type);
+                    }
+                }
+            },
+            'PHPParser_Node_Stmt_ClassMethod' => function(\PHPParser_Node_Stmt_ClassMethod $function) {
+                foreach ($function->params as $param) {
+                    if ($param->type instanceof \PHPParser_Node_Name) {
+                        $this->resolveClass($function, $param->type);
+                    }
+                }
+            },
+            'PHPParser_Node_Expr_StaticCall' => function(\PHPParser_Node_Expr_StaticCall $call) {
+                $this->resolveClass($call, $call->class);
+            },
+            'PHPParser_Node_Stmt_Class' => function(\PHPParser_Node_Stmt_Class $class) {
+                if ($class->implements) {
+                    foreach ($class->implements as $implements) {
+                        $this->resolveClass($class, $implements);
+                    }
+                }
+
+                if ($class->extends) {
+                    $this->resolveClass($class, $class->extends);
+                }
+            },
+            'PHPParser_Node_Expr_ClassConstFetch' => function(\PHPParser_Node_Expr_ClassConstFetch $classConst) {
+                $this->resolveClass($classConst, $classConst->class);
+            },
+            'PHPParser_Node_Stmt_TryCatch' => function(\PHPParser_Node_Stmt_TryCatch $try) {
+                // TODO: Might be able to just look at the catch directly now?
+                foreach ($try->catches as $catch) {
+                    $this->resolveClass($catch, $catch->type);
+                }
+
+            },
+            'PHPParser_Node_Expr_New' => function(\PHPParser_Node_Expr_New $new) {
+                $this->resolveClass($new, $new->class);
+            }
+        ];
+    }
+
+    /**
+     * @param \PHPParser_Node $statement   The statement that this class was referenced in for error generation.
+     * @param \PHPParser_Node_Name $type        The class to resolve.
+     */
+    private function resolveClass(\PHPParser_Node $statement, \PHPParser_Node_Name $type)
+    {
+        $qualifiedName = null;
+        $parts = $type->parts;
+
+        if (!$type->isUnqualified() && count($parts) !== 1) {
+            $this->bugfree->warning($statement, "Use of qualified type names is discouraged.");
+        }
+
+        if ($type->isFullyQualified()) {
+            $qualifiedName = "\\{$type->toString()}";
+        } else {
+            if (isset($this->aliases[$parts[0]])) {
+                $use = $this->aliases[$parts[0]];
+                $parts[0] = "\\" . $use->getName();
+                $use->markUsed();
+            } else {
+                $parts[0] = $this->namespace . "\\" . $parts[0];
+            }
+
+            $qualifiedName = implode("\\", $parts);
+        }
+
+        // Now that we know the qualified name lets make sure its valid.
+        if (!$this->resolver->isValid($qualifiedName)) {
+            $this->bugfree->error($statement, "Type '$qualifiedName' could not be resolved.");
+        }
+
+    }
+
+
+    /**
+     * Called once before traversal.
+     *
+     * Return value semantics:
+     *  * null:      $nodes stays as-is
+     *  * otherwise: $nodes is set to the return value
+     *
+     * @param \PHPParser_Node[] $nodes Array of nodes
+     *
+     * @return null|\PHPParser_Node[] Array of nodes
+     */
+    public function beforeTraverse(array $nodes)
+    {
+        $this->namespace = '\\';
+    }
+
+    /**
+     * Called when entering a node.
+     *
+     * Return value semantics:
+     *  * null:      $node stays as-is
+     *  * otherwise: $node is set to the return value
+     *
+     * @param \PHPParser_Node $node Node
+     *
+     * @return null|\PHPParser_Node Node
+     */
+    public function enterNode(\PHPParser_Node $node)
+    {
+        $class = get_class($node);
+        if(isset($this->handlers[$class])) {
+            $this->handlers[$class]($node);
+        }
+    }
+
+    /**
+     * Called once after traversal.
+     *
+     * Return value semantics:
+     *  * null:      $nodes stays as-is
+     *  * otherwise: $nodes is set to the return value
+     *
+     * @param \PHPParser_Node[] $nodes Array of nodes
+     *
+     * @return null|\PHPParser_Node[] Array of nodes
+     */
+    public function afterTraverse(array $nodes)
+    {
+        if ($this->namespace == '\\') {
+            $this->bugfree->error(null, 'Every source file should have a namespace');
+        }
+
+        foreach ($this->aliases as $use) {
+            if ($use->getUseCount() == 0) {
+                $this->bugfree->warning(null, "Use '{$use->getName()}' is not being used");
+            }
+        }
+    }
+
+
+}
