@@ -7,13 +7,13 @@ use bugfree\Bugfree;
 use bugfree\Resolver;
 use bugfree\UseTracker;
 
-
 /**
  * Fairly similar to PHP Parser's NameResolver except:
  *  - throws up warnings and errors when things smell a little fishy rather then parse errors.
  *  - Uses a resolver to work out if the given use is valid within your project, ideally by using your PSR-0 autoloader.
  */
-class NameValidator extends \PHPParser_NodeVisitorAbstract {
+class NameValidator extends \PHPParser_NodeVisitorAbstract
+{
     /** @var Resolver */
     private $resolver = null;
 
@@ -30,7 +30,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract {
      * @param Bugfree  $bugfree     Instance of bugfree to log errors and warnings against, TODO: split concerns?
      * @param Resolver $resolver    A resolver to use when resolving classes.
      */
-    function __construct(Bugfree $bugfree, Resolver $resolver)
+    public function __construct(Bugfree $bugfree, Resolver $resolver)
     {
         $this->bugfree = $bugfree;
         $this->resolver = $resolver;
@@ -44,6 +44,10 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract {
     {
         $qualifiedName = null;
         $parts = $type->parts;
+
+        if (in_array($parts[0], ['self', 'static', 'parent'])) {
+            return;
+        }
 
         if (!$type->isUnqualified() && count($parts) !== 1) {
             $this->bugfree->warning($statement, "Use of qualified type names is discouraged.");
@@ -100,49 +104,49 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract {
      */
     public function enterNode(\PHPParser_Node $node)
     {
-        if($node instanceof \PHPParser_Node_Stmt_Namespace) {
+        if ($node instanceof \PHPParser_Node_Stmt_Namespace) {
                 $this->namespace = '\\' . $node->name;
-        } elseif($node instanceof \PHPParser_Node_Stmt_Use) {
-                $use_count = 0;
-                foreach ($node->uses as $use) {
-                    if ($use instanceof \PHPParser_Node_Stmt_UseUse) {
-                        if (!$this->resolver->isValid("\\{$use->name}")) {
-                            $this->bugfree->error($use, "Use '\\{$use->name}' could not be resolved");
-                        }
-
-                        if(isset($this->aliases[$use->alias])) {
-                            $line = $this->aliases[$use->alias]->getNode()->getLine();
-                            $this->bugfree->error($use, "Alias '{$use->alias}' is already in use on line $line'");
-                        }
-
-                        $this->aliases[$use->alias] = new UseTracker($use->alias, $use->name, $use);
-
-                    } else {
-                        // I don't know if this error can ever be generated, as it should be a parse error...
-                        $this->bugfree->error($use, "Malformed use statement");
-                        return;
+        } elseif ($node instanceof \PHPParser_Node_Stmt_Use) {
+            $use_count = 0;
+            foreach ($node->uses as $use) {
+                if ($use instanceof \PHPParser_Node_Stmt_UseUse) {
+                    if (!$this->resolver->isValid("\\{$use->name}")) {
+                        $this->bugfree->error($use, "Use '\\{$use->name}' could not be resolved");
                     }
-                    $use_count++;
+
+                    if (isset($this->aliases[$use->alias])) {
+                        $line = $this->aliases[$use->alias]->getNode()->getLine();
+                        $this->bugfree->error($use, "Alias '{$use->alias}' is already in use on line $line'");
+                    }
+
+                    $this->aliases[$use->alias] = new UseTracker($use->alias, $use->name, $use);
+
+                } else {
+                    // I don't know if this error can ever be generated, as it should be a parse error...
+                    $this->bugfree->error($use, "Malformed use statement");
+                    return;
                 }
-                if ($use_count > 1) {
-                    $this->bugfree->warning($node, "Multiple uses in one statement is discouraged");
-                }
+                $use_count++;
+            }
+            if ($use_count > 1) {
+                $this->bugfree->warning($node, "Multiple uses in one statement is discouraged");
+            }
         } else {
-            if(isset($node->class)) {
+            if (isset($node->class) && $node->class instanceof \PHPParser_Node_Name) {
                 $this->resolveClass($node, $node->class);
             }
 
-            if(isset($node->implements)) {
+            if (isset($node->implements)) {
                 foreach ($node->implements as $implements) {
                     $this->resolveClass($node, $implements);
                 }
             }
 
-            if(isset($node->extends) && $node->extends instanceof \PHPParser_Node_Name) {
+            if (isset($node->extends) && $node->extends instanceof \PHPParser_Node_Name) {
                 $this->resolveClass($node, $node->extends);
             }
 
-            if(isset($node->type) && $node->type instanceof \PHPParser_Node_Name) {
+            if (isset($node->type) && $node->type instanceof \PHPParser_Node_Name) {
                 $this->resolveClass($node, $node->type);
             }
         }

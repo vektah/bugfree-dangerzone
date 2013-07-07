@@ -1,0 +1,18 @@
+#!/usr/bin/env php
+<?php
+/**
+ * CLI tool for checking files
+ */
+
+require_once(__DIR__ . "/../vendor/autoload.php");
+
+use bugfree\cli\CliTool;
+use Symfony\Component\Console\Application;
+
+$tool = new CliTool();
+$application = new Application();
+$application->add($tool);
+$application->run();
+
+var_dump($tool->getStatus());
+exit($tool->getStatus());

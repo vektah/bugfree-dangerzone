@@ -1,5 +1,6 @@
 COMPOSER_BIN := composer
 PHPUNIT_BIN := ./vendor/bin/phpunit
+BUGFREE_BIN := ./bin/bugfree
 
 depends: vendor
 
@@ -13,5 +14,13 @@ cleanvendor:
 	@rm -rf composer.lock
 	@rm -rf vendor
 
-test: depends
+lint: depends
+	@echo " --- Lint ---"
+	@$(BUGFREE_BIN) lint src
+	@echo
+
+
+test: lint depends
+	@echo " --- Unit tests ---"
 	@$(PHPUNIT_BIN)
+	@echo

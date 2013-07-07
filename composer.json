@@ -1,14 +1,19 @@
 {
-	"require": {
-		"nikic/php-parser": "0.9.3"
-	},
+    "require": {
+        "nikic/php-parser": "0.9.3",
+        "symfony/console": "2.3.1"
+    },
 
-	"require-dev": {
-		"phake/phake": "*",
-		"phpunit/phpunit": "3.7.*"
-	},
+    "require-dev": {
+        "phake/phake": "1.0.3",
+        "phpunit/phpunit": "3.7.21"
+    },
 
-	"autoload": {
-		"psr-0": {"bugfree\\": "src/main/"}
-	}
+    "bin": [
+        "composer/bin/bugfree"
+    ],
+
+    "autoload": {
+        "psr-0": {"bugfree\\": "src/main/"}
+    }
 }
