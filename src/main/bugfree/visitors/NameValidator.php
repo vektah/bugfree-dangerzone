@@ -14,8 +14,6 @@ use bugfree\UseTracker;
  *  - Uses a resolver to work out if the given use is valid within your project, ideally by using your PSR-0 autoloader.
  */
 class NameValidator extends \PHPParser_NodeVisitorAbstract {
-    private $handlers;
-
     /** @var Resolver */
     private $resolver = null;
 
@@ -36,82 +34,6 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract {
     {
         $this->bugfree = $bugfree;
         $this->resolver = $resolver;
-        $this->createHandlers();
-    }
-
-    /**
-     * Because functions cannot be created dynamically in the hash at initialisation time in php this method must be
-     * invoked to create the handlers array on construction. It could be static but that would require passing an
-     * instance through for counting uses and namespaces etc.
-     */
-    private function createHandlers() {
-        $this->handlers = [
-            'PHPParser_Node_Stmt_Namespace' => function(\PHPParser_Node_Stmt_Namespace $namespace) {
-                $this->namespace = '\\' . $namespace->name;
-            },
-            'PHPParser_Node_Stmt_Use' => function(\PHPParser_Node_Stmt_Use $use) {
-                $use_count = 0;
-                foreach ($use->uses as $use) {
-                    if ($use instanceof \PHPParser_Node_Stmt_UseUse) {
-                        if (!$this->resolver->isValid("\\{$use->name}")) {
-                            $this->bugfree->error($use, "Use '\\{$use->name}' could not be resolved");
-                        }
-
-                        $this->aliases[$use->alias] = new UseTracker($use->alias, $use->name);
-
-                    } else {
-                        // I don't know if this error can ever be generated, as it should be a parse error...
-                        $this->bugfree->error($use, "Malformed use statement");
-                        return;
-                    }
-                    $use_count++;
-                }
-                if ($use_count > 1) {
-                    $this->bugfree->warning($use, "Multiple uses in one statement is discouraged");
-                }
-            },
-            'PHPParser_Node_Stmt_Function' => function(\PHPParser_Node_Stmt_Function $function) {
-                foreach ($function->params as $param) {
-                    if ($param->type instanceof \PHPParser_Node_Name) {
-                        $this->resolveClass($function, $param->type);
-                    }
-                }
-            },
-            'PHPParser_Node_Stmt_ClassMethod' => function(\PHPParser_Node_Stmt_ClassMethod $function) {
-                foreach ($function->params as $param) {
-                    if ($param->type instanceof \PHPParser_Node_Name) {
-                        $this->resolveClass($function, $param->type);
-                    }
-                }
-            },
-            'PHPParser_Node_Expr_StaticCall' => function(\PHPParser_Node_Expr_StaticCall $call) {
-                $this->resolveClass($call, $call->class);
-            },
-            'PHPParser_Node_Stmt_Class' => function(\PHPParser_Node_Stmt_Class $class) {
-                if ($class->implements) {
-                    foreach ($class->implements as $implements) {
-                        $this->resolveClass($class, $implements);
-                    }
-                }
-
-                if ($class->extends) {
-                    $this->resolveClass($class, $class->extends);
-                }
-            },
-            'PHPParser_Node_Expr_ClassConstFetch' => function(\PHPParser_Node_Expr_ClassConstFetch $classConst) {
-                $this->resolveClass($classConst, $classConst->class);
-            },
-            'PHPParser_Node_Stmt_TryCatch' => function(\PHPParser_Node_Stmt_TryCatch $try) {
-                // TODO: Might be able to just look at the catch directly now?
-                foreach ($try->catches as $catch) {
-                    $this->resolveClass($catch, $catch->type);
-                }
-
-            },
-            'PHPParser_Node_Expr_New' => function(\PHPParser_Node_Expr_New $new) {
-                $this->resolveClass($new, $new->class);
-            }
-        ];
     }
 
     /**
@@ -178,9 +100,46 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract {
      */
     public function enterNode(\PHPParser_Node $node)
     {
-        $class = get_class($node);
-        if(isset($this->handlers[$class])) {
-            $this->handlers[$class]($node);
+        if($node instanceof \PHPParser_Node_Stmt_Namespace) {
+                $this->namespace = '\\' . $node->name;
+        } elseif($node instanceof \PHPParser_Node_Stmt_Use) {
+                $use_count = 0;
+                foreach ($node->uses as $use) {
+                    if ($use instanceof \PHPParser_Node_Stmt_UseUse) {
+                        if (!$this->resolver->isValid("\\{$use->name}")) {
+                            $this->bugfree->error($use, "Use '\\{$use->name}' could not be resolved");
+                        }
+
+                        $this->aliases[$use->alias] = new UseTracker($use->alias, $use->name);
+
+                    } else {
+                        // I don't know if this error can ever be generated, as it should be a parse error...
+                        $this->bugfree->error($use, "Malformed use statement");
+                        return;
+                    }
+                    $use_count++;
+                }
+                if ($use_count > 1) {
+                    $this->bugfree->warning($node, "Multiple uses in one statement is discouraged");
+                }
+        } else {
+            if(isset($node->class)) {
+                $this->resolveClass($node, $node->class);
+            }
+
+            if(isset($node->implements)) {
+                foreach ($node->implements as $implements) {
+                    $this->resolveClass($node, $implements);
+                }
+            }
+
+            if(isset($node->extends) && $node->extends instanceof \PHPParser_Node_Name) {
+                $this->resolveClass($node, $node->extends);
+            }
+
+            if(isset($node->type) && $node->type instanceof \PHPParser_Node_Name) {
+                $this->resolveClass($node, $node->type);
+            }
         }
     }
 
@@ -207,6 +166,4 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract {
             }
         }
     }
-
-
 }
