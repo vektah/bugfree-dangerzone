@@ -45,6 +45,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
         'false' => true,
         'true' => true,
         'self' => true,
+        'callable' => true,
     ];
 
     /**
@@ -179,11 +180,13 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
                     if (is_array($doc->getParams())) {
                         foreach ($doc->getParams() as $param) {
                             $type = $param->getType();
-                            if(substr($type, strlen($type) - 2) == '[]') {
-                                $type = substr($type, 0, strlen($type) - 2);
-                            }
-                            if (!isset(self::$ignored_types[$type])) {
-                                $this->resolveClass($node, $this->nodeFromString($type));
+                            foreach (explode('|', $type) as $typePart) {
+                                if (substr($type, strlen($typePart) - 2) == '[]') {
+                                    $typePart = substr($typePart, 0, strlen($typePart) - 2);
+                                }
+                                if (!isset(self::$ignored_types[strtolower($typePart)])) {
+                                    $this->resolveClass($node, $this->nodeFromString($typePart));
+                                }
                             }
                         }
                     }

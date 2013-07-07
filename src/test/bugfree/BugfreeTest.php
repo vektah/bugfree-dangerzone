@@ -61,7 +61,8 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
         $this->assertArrayValuesContains($analyzer->getWarnings(), "Use 'asdf' is not being used");
     }
 
-    public function testDuplicateAlias() {
+    public function testDuplicateAlias()
+    {
         $src = '<?php namespace foo;
             use asdf;
             use foo\asdf;
@@ -430,6 +431,24 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
         $src = "<?php namespace foo;
             /**
              * @param $builtinType \$a ggg
+             */
+            function foo(\$a) {}
+        ";
+
+        $analyzer = new Bugfree('test', $src, $this->resolver);
+
+        $this->assertEquals(0, count($analyzer->getWarnings()), print_r($analyzer->getWarnings(), true));
+        $this->assertEquals(0, count($analyzer->getErrors()), print_r($analyzer->getErrors(), true));
+    }
+
+    public function testTypesCombinedWithOrInDocTypeHint()
+    {
+        Phake::when($this->resolver)->isValid("\\foo\\string")->thenReturn(false);
+        Phake::when($this->resolver)->isValid("\\foo\\integer")->thenReturn(false);
+
+        $src = "<?php namespace foo;
+            /**
+             * @param string|integer \$a ggg
              */
             function foo(\$a) {}
         ";
