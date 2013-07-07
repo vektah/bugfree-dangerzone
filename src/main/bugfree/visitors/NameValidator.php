@@ -4,6 +4,7 @@ namespace bugfree\visitors;
 
 
 use bugfree\Bugfree;
+use bugfree\docblock\DocBlock;
 use bugfree\Resolver;
 use bugfree\UseTracker;
 
@@ -25,6 +26,26 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
 
     /** @var Bugfree */
     private $bugfree;
+
+    private static $ignored_types = [
+        'string' => true,
+        'integer' => true,
+        'int' => true,
+        'boolean' => true,
+        'bool' => true,
+        'float' => true,
+        'double' => true,
+        'object' => true,
+        'mixed' => true,
+        'array' => true,
+        'resource' => true,
+        'void' => true,
+        'null' => true,
+        'callback' => true,
+        'false' => true,
+        'true' => true,
+        'self' => true,
+    ];
 
     /**
      * @param Bugfree  $bugfree     Instance of bugfree to log errors and warnings against, TODO: split concerns?
@@ -149,6 +170,34 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
             if (isset($node->type) && $node->type instanceof \PHPParser_Node_Name) {
                 $this->resolveClass($node, $node->type);
             }
+
+
+            if ($node instanceof \PHPParser_Node_Stmt_ClassMethod or $node instanceof \PHPParser_Node_Stmt_Function) {
+                if ($docblock = $node->getDocComment()) {
+                    $doc = new DocBlock($docblock->getText());
+
+                    if (is_array($doc->getParams())) {
+                        foreach ($doc->getParams() as $param) {
+                            $type = $param->getType();
+                            if(substr($type, strlen($type) - 2) == '[]') {
+                                $type = substr($type, 0, strlen($type) - 2);
+                            }
+                            if (!isset(self::$ignored_types[$type])) {
+                                $this->resolveClass($node, $this->nodeFromString($type));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private function nodeFromString($str)
+    {
+        if ($str[0] == '\\') {
+            return new \PHPParser_Node_Name_FullyQualified(substr($str, 1));
+        } else {
+            return new \PHPParser_Node_Name($str);
         }
     }
 

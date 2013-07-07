@@ -358,4 +358,85 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
         ";
         $this->verifySource($src, $options);
     }
+
+    /**
+     * @dataProvider useProvider
+     */
+    public function testUseResolutionInFunctionDocBlockTypeHint($options)
+    {
+        $src = "<?php namespace testns;
+        use foo\\bar\\baz;
+        use foo\\Thing;
+
+        function doNotWarnAboutUnused(baz \$a, Thing \$b) {}
+
+        /**
+         * @param {$options['type']} \$a A thing
+         */
+        function foo(\$a) {}
+        ";
+        $this->verifySource($src, $options);
+    }
+
+    /**
+     * @dataProvider useProvider
+     */
+    public function testUseResolutionInFunctionDocBlockTypeHintArraySyntax($options)
+    {
+        $src = "<?php namespace testns;
+        use foo\\bar\\baz;
+        use foo\\Thing;
+
+        function doNotWarnAboutUnused(baz \$a, Thing \$b) {}
+
+        /**
+         * @param {$options['type']}[] \$a A thing
+         */
+        function foo(\$a) {}
+        ";
+        $this->verifySource($src, $options);
+    }
+
+    public function builtinTypeProvider()
+    {
+        return [
+            ['string'],
+            ['integer'],
+            ['int'],
+            ['boolean'],
+            ['bool'],
+            ['float'],
+            ['double'],
+            ['object'],
+            ['mixed'],
+            ['array'],
+            ['resource'],
+            ['void'],
+            ['null'],
+            ['callback'],
+            ['false'],
+            ['true'],
+            ['self']
+        ];
+    }
+
+    /**
+     * @dataProvider builtinTypeProvider
+     */
+    public function testBuiltinTypesIgnoredInDocParams($builtinType)
+    {
+        Phake::when($this->resolver)->isValid("\\foo\\$builtinType")->thenReturn(false);
+
+        $src = "<?php namespace foo;
+            /**
+             * @param $builtinType \$a ggg
+             */
+            function foo(\$a) {}
+        ";
+
+        $analyzer = new Bugfree('test', $src, $this->resolver);
+
+        $this->assertEquals(0, count($analyzer->getWarnings()), print_r($analyzer->getWarnings(), true));
+        $this->assertEquals(0, count($analyzer->getErrors()), print_r($analyzer->getErrors(), true));
+    }
 }

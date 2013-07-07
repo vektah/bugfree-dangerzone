@@ -13,6 +13,3 @@ $tool = new CliTool();
 $application = new Application();
 $application->add($tool);
 $application->run();
-
-var_dump($tool->getStatus());
-exit($tool->getStatus());
