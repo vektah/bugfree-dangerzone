@@ -3,16 +3,22 @@
 namespace bugfree;
 
 
+use bugfree\config\Config;
 use Phake;
 
 class BugfreeTest extends \PHPUnit_Framework_TestCase
 {
     private $resolver;
 
+    /** @var  Bugfree */
+    private $bugfree;
+
     public function setUp()
     {
         $this->resolver = Phake::mock(Resolver::_CLASS);
         Phake::when($this->resolver)->isValid(Phake::anyParameters())->thenReturn(true);
+
+        $this->bugfree = new Bugfree($this->resolver, new Config());
     }
 
     private function assertArrayValuesContains(array $array, $string)
@@ -31,34 +37,34 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
 
     public function testNamespaceError()
     {
-        $analyzer = new Bugfree('test', '<?php use asdf,hjkl;', $this->resolver);
+        $result = $this->bugfree->parse('test', '<?php use asdf,hjkl;', $this->resolver);
         // Make sure no namespace raises an error
-        $this->assertArrayValuesContains($analyzer->getErrors(), 'Every source file should have a namespace');
+        $this->assertArrayValuesContains($result->getErrors(), 'Every source file should have a namespace');
 
         // But also make sure parsing continues!
-        $this->assertArrayValuesContains($analyzer->getWarnings(), 'Multiple uses in one statement is discouraged');
+        $this->assertArrayValuesContains($result->getWarnings(), 'Multiple uses in one statement is discouraged');
     }
 
     public function testMultiPartUseWarning()
     {
-        $analyzer = new Bugfree('test', '<?php namespace foo; use asdf, hjkl;', $this->resolver);
-        $this->assertArrayValuesContains($analyzer->getWarnings(), 'Multiple uses in one statement is discouraged');
+        $result = $this->bugfree->parse('test', '<?php namespace foo; use asdf, hjkl;', $this->resolver);
+        $this->assertArrayValuesContains($result->getWarnings(), 'Multiple uses in one statement is discouraged');
     }
 
     public function testUnresolvingUseStatement()
     {
         Phake::when($this->resolver)->isValid('\asdf')->thenReturn(false);
 
-        $analyzer = new Bugfree('test', '<?php namespace foo; use asdf, hjkl;', $this->resolver);
+        $result = $this->bugfree->parse('test', '<?php namespace foo; use asdf, hjkl;', $this->resolver);
 
-        $this->assertArrayValuesContains($analyzer->getErrors(), "Use '\\asdf' could not be resolved");
+        $this->assertArrayValuesContains($result->getErrors(), "Use '\\asdf' could not be resolved");
     }
 
     public function testUnusedUse()
     {
-        $analyzer = new Bugfree('test', '<?php namespace foo; use asdf;', $this->resolver);
+        $result = $this->bugfree->parse('test', '<?php namespace foo; use asdf;', $this->resolver);
 
-        $this->assertArrayValuesContains($analyzer->getWarnings(), "Use 'asdf' is not being used");
+        $this->assertArrayValuesContains($result->getWarnings(), "Use 'asdf' is not being used");
     }
 
     public function testDuplicateAlias()
@@ -67,9 +73,9 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
             use asdf;
             use foo\asdf;
         ';
-        $analyzer = new Bugfree('test', $src, $this->resolver);
+        $result = $this->bugfree->parse('test', $src, $this->resolver);
 
-        $this->assertArrayValuesContains($analyzer->getErrors(), "Alias 'asdf' is already in use on line 2");
+        $this->assertArrayValuesContains($result->getErrors(), "Alias 'asdf' is already in use on line 2");
     }
 
     public function testMultipleNamespaces()
@@ -87,10 +93,10 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
         }
         ";
 
-        $analyzer = new Bugfree('test', $src, $this->resolver);
+        $result = $this->bugfree->parse('test', $src, $this->resolver);
 
-        $this->assertArrayValuesContains($analyzer->getErrors(), "Type '\\foo\\Foo' could not be resolved");
-        $this->assertArrayValuesContains($analyzer->getErrors(), "Type '\\baz\\Baz' could not be resolved");
+        $this->assertArrayValuesContains($result->getErrors(), "Type '\\foo\\Foo' could not be resolved");
+        $this->assertArrayValuesContains($result->getErrors(), "Type '\\baz\\Baz' could not be resolved");
     }
 
     public function useProvider()
@@ -168,24 +174,24 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
         Phake::when($this->resolver)->isValid('\\foo\\bar\\baz')->thenReturn(true);
         Phake::when($this->resolver)->isValid('\\foo\\Thing')->thenReturn(true);
 
-        $analyzer = new Bugfree('test', $src, $this->resolver);
+        $result = $this->bugfree->parse('test', $src, $this->resolver);
 
         foreach ($options['errors'] as $error) {
-            $this->assertArrayValuesContains($analyzer->getErrors(), $error);
+            $this->assertArrayValuesContains($result->getErrors(), $error);
         }
         $this->assertEquals(
             count($options['errors']),
-            count($analyzer->getErrors()),
-            print_r($analyzer->getErrors(), true)
+            count($result->getErrors()),
+            print_r($result->getErrors(), true)
         );
 
         foreach ($options['warnings'] as $warning) {
-            $this->assertArrayValuesContains($analyzer->getWarnings(), $warning);
+            $this->assertArrayValuesContains($result->getWarnings(), $warning);
         }
         $this->assertEquals(
             count($options['warnings']),
-            count($analyzer->getWarnings()),
-            print_r($analyzer->getWarnings(), true)
+            count($result->getWarnings()),
+            print_r($result->getWarnings(), true)
         );
 
         foreach ($options['invalid'] as $resolveCall) {
@@ -435,10 +441,10 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
             function foo(\$a) {}
         ";
 
-        $analyzer = new Bugfree('test', $src, $this->resolver);
+        $result = $this->bugfree->parse('test', $src, $this->resolver);
 
-        $this->assertEquals(0, count($analyzer->getWarnings()), print_r($analyzer->getWarnings(), true));
-        $this->assertEquals(0, count($analyzer->getErrors()), print_r($analyzer->getErrors(), true));
+        $this->assertEquals(0, count($result->getWarnings()), print_r($result->getWarnings(), true));
+        $this->assertEquals(0, count($result->getErrors()), print_r($result->getErrors(), true));
     }
 
     public function testTypesCombinedWithOrInDocTypeHint()
@@ -453,9 +459,9 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
             function foo(\$a) {}
         ";
 
-        $analyzer = new Bugfree('test', $src, $this->resolver);
+        $result = $this->bugfree->parse('test', $src, $this->resolver);
 
-        $this->assertEquals(0, count($analyzer->getWarnings()), print_r($analyzer->getWarnings(), true));
-        $this->assertEquals(0, count($analyzer->getErrors()), print_r($analyzer->getErrors(), true));
+        $this->assertEquals(0, count($result->getWarnings()), print_r($result->getWarnings(), true));
+        $this->assertEquals(0, count($result->getErrors()), print_r($result->getErrors(), true));
     }
 }

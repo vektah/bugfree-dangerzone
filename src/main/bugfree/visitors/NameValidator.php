@@ -5,7 +5,9 @@ namespace bugfree\visitors;
 
 use bugfree\Bugfree;
 use bugfree\docblock\DocBlock;
+use bugfree\ErrorType;
 use bugfree\Resolver;
+use bugfree\Result;
 use bugfree\UseTracker;
 
 /**
@@ -25,7 +27,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
     private $aliases = [];
 
     /** @var Bugfree */
-    private $bugfree;
+    private $result;
 
     private static $ignored_types = [
         'string' => true,
@@ -49,12 +51,12 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
     ];
 
     /**
-     * @param Bugfree  $bugfree     Instance of bugfree to log errors and warnings against, TODO: split concerns?
+     * @param Result  $result     Instance of bugfree to log errors and warnings against, TODO: split concerns?
      * @param Resolver $resolver    A resolver to use when resolving classes.
      */
-    public function __construct(Bugfree $bugfree, Resolver $resolver)
+    public function __construct(Result $result, Resolver $resolver)
     {
-        $this->bugfree = $bugfree;
+        $this->result = $result;
         $this->resolver = $resolver;
     }
 
@@ -72,7 +74,11 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
         }
 
         if (!$type->isUnqualified() && count($parts) !== 1) {
-            $this->bugfree->warning($statement, "Use of qualified type names is discouraged.");
+            $this->result->error(
+                ErrorType::USE_OF_UNQUALIFIED_TYPE,
+                $statement,
+                "Use of qualified type names is discouraged."
+            );
         }
 
         if ($type->isFullyQualified()) {
@@ -91,7 +97,11 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
 
         // Now that we know the qualified name lets make sure its valid.
         if (!$this->resolver->isValid($qualifiedName)) {
-            $this->bugfree->error($statement, "Type '$qualifiedName' could not be resolved.");
+            $this->result->error(
+                ErrorType::UNABLE_TO_RESOLVE_TYPE,
+                $statement,
+                "Type '$qualifiedName' could not be resolved."
+            );
         }
 
     }
@@ -133,25 +143,41 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
             foreach ($node->uses as $use) {
                 if ($use instanceof \PHPParser_Node_Stmt_UseUse) {
                     if (!$this->resolver->isValid("\\{$use->name}")) {
-                        $this->bugfree->error($use, "Use '\\{$use->name}' could not be resolved");
+                        $this->result->error(
+                            ErrorType::UNABLE_TO_RESOLVE_USE,
+                            $use,
+                            "Use '\\{$use->name}' could not be resolved"
+                        );
                     }
 
                     if (isset($this->aliases[$use->alias])) {
                         $line = $this->aliases[$use->alias]->getNode()->getLine();
-                        $this->bugfree->error($use, "Alias '{$use->alias}' is already in use on line $line'");
+                        $this->result->error(
+                            ErrorType::DUPLICATE_ALIAS,
+                            $use,
+                            "Alias '{$use->alias}' is already in use on line $line'"
+                        );
                     }
 
                     $this->aliases[$use->alias] = new UseTracker($use->alias, $use->name, $use);
 
                 } else {
                     // I don't know if this error can ever be generated, as it should be a parse error...
-                    $this->bugfree->error($use, "Malformed use statement");
+                    $this->result->error(
+                        ErrorType::MALFORMED_USE,
+                        $use,
+                        "Malformed use statement"
+                    );
                     return;
                 }
                 $use_count++;
             }
             if ($use_count > 1) {
-                $this->bugfree->warning($node, "Multiple uses in one statement is discouraged");
+                $this->result->error(
+                    ErrorType::MULTI_STATEMENT_USE,
+                    $node,
+                    "Multiple uses in one statement is discouraged"
+                );
             }
         } else {
             if (isset($node->class) && $node->class instanceof \PHPParser_Node_Name) {
@@ -218,12 +244,20 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
     public function afterTraverse(array $nodes)
     {
         if ($this->namespace == '\\') {
-            $this->bugfree->error(null, 'Every source file should have a namespace');
+            $this->result->error(
+                ErrorType::MISSING_NAMESPACE,
+                null,
+                'Every source file should have a namespace'
+            );
         }
 
         foreach ($this->aliases as $use) {
             if ($use->getUseCount() == 0) {
-                $this->bugfree->warning(null, "Use '{$use->getName()}' is not being used");
+                $this->result->error(
+                    ErrorType::UNUSED_USE,
+                    null,
+                    "Use '{$use->getName()}' is not being used"
+                );
             }
         }
     }

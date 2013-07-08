@@ -6,10 +6,12 @@
 
 require_once(__DIR__ . "/../vendor/autoload.php");
 
-use bugfree\cli\CliTool;
+
+use bugfree\cli\GenerateConfig;
+use bugfree\cli\Lint;
 use Symfony\Component\Console\Application;
 
-$tool = new CliTool();
 $application = new Application();
-$application->add($tool);
+$application->add(new Lint());
+$application->add(new GenerateConfig());
 $application->run();

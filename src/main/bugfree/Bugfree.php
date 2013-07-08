@@ -2,6 +2,7 @@
 
 namespace bugfree;
 
+use bugfree\config\Config;
 use bugfree\visitors\NameValidator;
 
 /**
@@ -12,73 +13,39 @@ use bugfree\visitors\NameValidator;
  */
 class Bugfree
 {
-    /** @var string */
-    private $name;
+    /** @var Resolver */
+    private $resolver;
 
-    /** @var string[] */
-    private $errors = [];
-
-    /** @var string[] */
-    private $warnings = [];
+    /** @var Config */
+    private $config;
 
     /**
-     * @param string   $name
-     * @param string   $source the source code to analyze
      * @param Resolver $resolver resolver to use when checking use statements.
+     * @param config\Config $config
      */
-    public function __construct($name, $source, Resolver $resolver)
+    public function __construct(Resolver $resolver, Config $config)
     {
-        $this->name = $name;
+        $this->resolver = $resolver;
+        $this->config = $config;
+    }
+
+    /**
+     * Parse a source with the given name.
+     *
+     * @param string   $name    The filename to include in any error messages
+     * @param string   $source  The source code to analyze
+     *
+     * @return Result
+     */
+    public function parse($name, $source)
+    {
+        $result = new Result($name, $this->config);
         $parser = new \PHPParser_Parser(new \PHPParser_Lexer());
 
         $traverser = new \PHPParser_NodeTraverser();
-        $traverser->addVisitor(new NameValidator($this, $resolver));
+        $traverser->addVisitor(new NameValidator($result, $this->resolver));
         $traverser->traverse($parser->parse($source));
-    }
 
-    /**
-     * Adds an error
-     *
-     * @param \PHPParser_Node $statement
-     * @param string               $message
-     */
-    public function error($statement, $message)
-    {
-        $locator = $this->name;
-        if ($statement) {
-            $locator .= ":{$statement->getLine()}";
-        }
-        $this->errors[] = "$locator $message";
-    }
-
-    /**
-     * Adds a warning
-     *
-     * @param \PHPParser_Node $statement
-     * @param string $message
-     */
-    public function warning($statement, $message)
-    {
-        $locator = $this->name;
-        if ($statement) {
-            $locator .= ":{$statement->getLine()}";
-        }
-        $this->warnings[] = "$locator $message";
-    }
-
-    /**
-     * @return string[] all of the errors in this file.
-     */
-    public function getErrors()
-    {
-        return $this->errors;
-    }
-
-    /**
-     * @return string[] all of the warnings in this file.
-     */
-    public function getWarnings()
-    {
-        return $this->warnings;
+        return $result;
     }
 }
