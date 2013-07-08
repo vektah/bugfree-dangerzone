@@ -24,7 +24,7 @@
     },
 
     "bin": [
-        "composer/bin/bugfree"
+        "bin/bugfree"
     ],
 
     "autoload": {
