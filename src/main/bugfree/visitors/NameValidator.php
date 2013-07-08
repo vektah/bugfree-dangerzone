@@ -60,10 +60,11 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
     }
 
     /**
-     * @param \PHPParser_Node $statement   The statement that this class was referenced in for error generation.
-     * @param \PHPParser_Node_Name $type        The class to resolve.
+     * @param \PHPParser_Node $statement    The statement that this class was referenced in for error generation.
+     * @param \PHPParser_Node_Name $type    The class to resolve.
+     * @param boolean $in_comment           If the type was found in a comment
      */
-    private function resolveClass(\PHPParser_Node $statement, \PHPParser_Node_Name $type)
+    private function resolveType(\PHPParser_Node $statement, \PHPParser_Node_Name $type, $in_comment=false)
     {
         $qualifiedName = null;
         $parts = $type->parts;
@@ -73,8 +74,14 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
         }
 
         if (!$type->isUnqualified() && count($parts) !== 1) {
+            if ($in_comment) {
+                $level = ErrorType::USE_OF_UNQUALIFIED_TYPE_IN_COMMENT;
+            } else {
+                $level = ErrorType::USE_OF_UNQUALIFIED_TYPE;
+            }
+
             $this->result->error(
-                ErrorType::USE_OF_UNQUALIFIED_TYPE,
+                $level,
                 $statement,
                 "Use of qualified type names is discouraged."
             );
@@ -96,8 +103,14 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
 
         // Now that we know the qualified name lets make sure its valid.
         if (!$this->resolver->isValid($qualifiedName)) {
+            if ($in_comment) {
+                $level = ErrorType::UNABLE_TO_RESOLVE_TYPE_IN_COMMENT;
+            } else {
+                $level = ErrorType::UNABLE_TO_RESOLVE_TYPE;
+            }
+
             $this->result->error(
-                ErrorType::UNABLE_TO_RESOLVE_TYPE,
+                $level,
                 $statement,
                 "Type '$qualifiedName' could not be resolved."
             );
@@ -180,27 +193,27 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
             }
         } else {
             if (isset($node->class) && $node->class instanceof \PHPParser_Node_Name) {
-                $this->resolveClass($node, $node->class);
+                $this->resolveType($node, $node->class);
             }
 
             if (isset($node->traits)) {
                 foreach ($node->traits as $trait) {
-                    $this->resolveClass($node, $trait);
+                    $this->resolveType($node, $trait);
                 }
             }
 
             if (isset($node->implements)) {
                 foreach ($node->implements as $implements) {
-                    $this->resolveClass($node, $implements);
+                    $this->resolveType($node, $implements);
                 }
             }
 
             if (isset($node->extends) && $node->extends instanceof \PHPParser_Node_Name) {
-                $this->resolveClass($node, $node->extends);
+                $this->resolveType($node, $node->extends);
             }
 
             if (isset($node->type) && $node->type instanceof \PHPParser_Node_Name) {
-                $this->resolveClass($node, $node->type);
+                $this->resolveType($node, $node->type);
             }
 
 
@@ -216,7 +229,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
                                     $typePart = substr($typePart, 0, strlen($typePart) - 2);
                                 }
                                 if (!isset(self::$ignored_types[strtolower($typePart)])) {
-                                    $this->resolveClass($node, $this->nodeFromString($typePart));
+                                    $this->resolveType($node, $this->nodeFromString($typePart), true);
                                 }
                             }
                         }
