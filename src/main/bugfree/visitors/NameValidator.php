@@ -3,7 +3,6 @@
 namespace bugfree\visitors;
 
 
-use bugfree\Bugfree;
 use bugfree\docblock\DocBlock;
 use bugfree\ErrorType;
 use bugfree\Resolver;

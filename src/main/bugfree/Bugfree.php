@@ -21,7 +21,7 @@ class Bugfree
 
     /**
      * @param Resolver $resolver resolver to use when checking use statements.
-     * @param config\Config $config
+     * @param Config $config
      */
     public function __construct(Resolver $resolver, Config $config)
     {
