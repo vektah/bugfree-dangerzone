@@ -1,4 +1,18 @@
 {
+    "name": "vektah/bugfree-dangerzone",
+    "type": "type-verifier",
+    "description": "Type verification for php source. Ensures uses and all types within a file verify against the projects auto loader.",
+    "keywords": ["ci", "type", "typehint", "testing"],
+    "homepage": "https://github.com/Vektah/bugfree-dangerzone",
+    "licence": "http://opensource.org/licenses/BSD-2-Clause",
+    "authors": [
+        {
+            "name": "Adam Scarr",
+            "email": "adam@vektah.net",
+            "role": "Developer"
+        }
+    ],
+
     "require": {
         "nikic/php-parser": "0.9.3",
         "symfony/console": "2.3.1"

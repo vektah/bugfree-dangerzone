@@ -261,7 +261,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
      */
     public function afterTraverse(array $nodes)
     {
-        if ($this->namespace == '\\') {
+        if ($this->namespace == '') {
             $this->result->error(
                 ErrorType::MISSING_NAMESPACE,
                 null,
