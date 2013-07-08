@@ -8,7 +8,7 @@ use bugfree\ErrorType;
 class EmitLevel
 {
     public $unableToResolveType = ErrorType::ERROR;
-    public $unableToResolveTypeInComment = ErrorType::WARNING;
+    public $unableToResolveTypeInComment = ErrorType::ERROR;
     public $unableToResolveUse = ErrorType::ERROR;
     public $useOfUnqualifiedType = ErrorType::WARNING;
     public $useOfUnqualifiedTypeInComment = ErrorType::WARNING;
