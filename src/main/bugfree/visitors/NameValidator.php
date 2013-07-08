@@ -20,7 +20,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
     private $resolver = null;
 
     /** @var string the current namespace, '\' for no namespace */
-    private $namespace = '\\';
+    private $namespace = '';
 
     /** @var UseTracker[] UseTrackers keyed on alias */
     private $aliases = [];
@@ -132,7 +132,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
      */
     public function beforeTraverse(array $nodes)
     {
-        $this->namespace = '\\';
+        $this->namespace = '';
     }
 
     /**
