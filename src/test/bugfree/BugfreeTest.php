@@ -404,6 +404,24 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
         $this->verifySource($src, $options);
     }
 
+    /**
+     * @dataProvider useProvider
+     */
+    public function testUseResolutionInTraitUse($options)
+    {
+        $src = "<?php namespace testns;
+        use foo\\bar\\baz;
+        use foo\\Thing;
+
+        function doNotWarnAboutUnused(baz \$a, Thing \$b) {}
+
+        class Faz {
+            use {$options['type']};
+        }
+        ";
+        $this->verifySource($src, $options);
+    }
+
     public function builtinTypeProvider()
     {
         return [

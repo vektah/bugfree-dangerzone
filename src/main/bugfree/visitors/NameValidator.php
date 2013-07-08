@@ -183,6 +183,12 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
                 $this->resolveClass($node, $node->class);
             }
 
+            if (isset($node->traits)) {
+                foreach ($node->traits as $trait) {
+                    $this->resolveClass($node, $trait);
+                }
+            }
+
             if (isset($node->implements)) {
                 foreach ($node->implements as $implements) {
                     $this->resolveClass($node, $implements);

@@ -25,7 +25,7 @@ class AutoloaderResolver implements Resolver
      */
     public function isValid($name)
     {
-        if (class_exists($name) || interface_exists($name)) {
+        if (class_exists($name) || interface_exists($name) || trait_exists($name)) {
             return true;
         }
 
