@@ -424,6 +424,46 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
+    * @dataProvider useProvider
+    */
+    public function testUseResolutionInAtVarAnnotationSyntax($options)
+    {
+        $src = "<?php namespace testns;
+        use foo\\bar\\baz;
+        use foo\\Thing;
+
+        function doNotWarnAboutUnused(baz \$a, Thing \$b) {}
+
+        /**
+        * @var {$options['type']}[] \$a A thing
+        */
+        \$foo = 'asdf';
+        ";
+        $this->verifySource($src, $options);
+    }
+
+    /**
+    * @dataProvider useProvider
+    */
+    public function testUseResolutionInAtVarAnnotationSyntaxOnClassPrivates($options)
+    {
+        $src = "<?php namespace testns;
+        use foo\\bar\\baz;
+        use foo\\Thing;
+
+        function doNotWarnAboutUnused(baz \$a, Thing \$b) {}
+
+        class Faz {
+            /**
+            * @var {$options['type']}[] \$a A thing
+            */
+            private \$foo = 'asdf';
+        }
+        ";
+        $this->verifySource($src, $options);
+    }
+
+    /**
      * @dataProvider useProvider
      */
     public function testUseResolutionInTraitUse($options)

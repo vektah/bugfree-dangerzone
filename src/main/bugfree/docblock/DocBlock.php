@@ -23,9 +23,11 @@ class DocBlock
             $value = trim(explode('*/', $value)[0]);
 
             if ($name == 'param') {
-                $value = new Param($value);
+                $value = new AtParam($value);
             } elseif ($name == 'return') {
-                $value = new Returns($value);
+                $value = new AtReturn($value);
+            } elseif ($name == 'var') {
+                $value = new AtVar($value);
             }
 
             $this->annotations[$name][] = $value;
@@ -44,11 +46,11 @@ class DocBlock
             return $this->annotations[$name];
         }
 
-        return null;
+        return [];
     }
 
     /**
-     * @return Param[] An array of zero ore more Param annotations (@param)
+     * @return AtParam[] An array of zero ore more Param annotations (@param)
      */
     public function getParams()
     {
@@ -56,7 +58,7 @@ class DocBlock
     }
 
     /**
-     * @return Returns a return annotation object
+     * @return AtReturn a return annotation object
      */
     public function getReturn()
     {

@@ -9,7 +9,7 @@ class DocBlockTest extends \PHPUnit_Framework_TestCase
     {
         $doc = new DocBlock("/** @param string \$foo a foo */");
         $param = $doc->getParams()[0];
-        $this->assertInstanceOf(Param::_CLASS, $param);
+        $this->assertInstanceOf(AtParam::_CLASS, $param);
         $this->assertEquals('string', $param->getType());
         $this->assertEquals('$foo', $param->getName());
         $this->assertEquals('a foo', $param->getDescription());
@@ -24,13 +24,13 @@ class DocBlockTest extends \PHPUnit_Framework_TestCase
               */"
         );
         $param = $doc->getParams()[0];
-        $this->assertInstanceOf(Param::_CLASS, $param);
+        $this->assertInstanceOf(AtParam::_CLASS, $param);
         $this->assertEquals('string', $param->getType());
         $this->assertEquals('$foo', $param->getName());
         $this->assertEquals('a foo', $param->getDescription());
 
         $param = $doc->getParams()[1];
-        $this->assertInstanceOf(Param::_CLASS, $param);
+        $this->assertInstanceOf(AtParam::_CLASS, $param);
         $this->assertEquals('turtle', $param->getType());
         $this->assertEquals('$t', $param->getName());
         $this->assertEquals('a turtle', $param->getDescription());
@@ -40,8 +40,17 @@ class DocBlockTest extends \PHPUnit_Framework_TestCase
     {
         $doc = new DocBlock("/** @return string a foo */");
         $return = $doc->getReturn();
-        $this->assertInstanceOf(Returns::_CLASS, $return);
+        $this->assertInstanceOf(AtReturn::_CLASS, $return);
         $this->assertEquals('string', $return->getType());
         $this->assertEquals('a foo', $return->getDescription());
+    }
+
+    public function testVarAnnotation()
+    {
+        $doc = new DocBlock("/** @var string a foo */");
+        $annotation = $doc->getAnnotations('var')[0];
+        $this->assertInstanceOf(AtVar::_CLASS, $annotation);
+        $this->assertEquals('string', $annotation->getType());
+        $this->assertEquals('a foo', $annotation->getDescription());
     }
 }

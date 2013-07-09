@@ -25,7 +25,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
     /** @var UseTracker[] UseTrackers keyed on alias */
     private $aliases = [];
 
-    /** @var Bugfree */
+    /** @var Result */
     private $result;
 
     private static $ignored_types = [
@@ -234,8 +234,11 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
                 $this->resolveType($node, $node->type);
             }
 
+            if ($node instanceof \PHPParser_Node_Stmt_ClassMethod or
+                $node instanceof \PHPParser_Node_Stmt_Function or
+                $node instanceof \PHPParser_Node_Stmt_Property or
+                $node instanceOf \PHPParser_Node_Expr_Variable) {
 
-            if ($node instanceof \PHPParser_Node_Stmt_ClassMethod or $node instanceof \PHPParser_Node_Stmt_Function) {
                 if ($docblock = $node->getDocComment()) {
                     $doc = new DocBlock($docblock->getText());
 
@@ -247,6 +250,10 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
 
                     if ($doc->getReturn()) {
                         $this->resolveAnnotatedType($node, $doc->getReturn()->getType());
+                    }
+
+                    foreach ($doc->getAnnotations('var') as $var) {
+                        $this->resolveAnnotatedType($node, $var->getType());
                     }
                 }
             }

@@ -3,7 +3,7 @@
 namespace bugfree\docblock;
 
 
-class Param
+class AtParam
 {
     private $type;
     private $name;

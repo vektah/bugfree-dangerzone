@@ -3,7 +3,7 @@
 namespace bugfree\docblock;
 
 
-class Returns
+class AtReturn
 {
     private $type;
     private $description;
