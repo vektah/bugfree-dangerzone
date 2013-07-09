@@ -24,6 +24,8 @@ class DocBlock
 
             if ($name == 'param') {
                 $value = new Param($value);
+            } elseif ($name == 'return') {
+                $value = new Returns($value);
             }
 
             $this->annotations[$name][] = $value;
@@ -51,5 +53,18 @@ class DocBlock
     public function getParams()
     {
         return $this->getAnnotations('param');
+    }
+
+    /**
+     * @return Returns a return annotation object
+     */
+    public function getReturn()
+    {
+        $returns = $this->getAnnotations('return');
+
+        if (count($returns) > 0) {
+            return $returns[0];
+        }
+        return null;
     }
 }

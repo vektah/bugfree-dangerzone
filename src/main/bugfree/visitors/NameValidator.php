@@ -118,6 +118,24 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
 
     }
 
+    /**
+     * resolves a type that was found in a docblock annotation.
+     *
+     * @param \PHPParser_Node $statement
+     * @param $type
+     */
+    private function resolveAnnotatedType(\PHPParser_Node $statement, $type)
+    {
+        foreach (explode('|', $type) as $typePart) {
+            if (substr($type, strlen($typePart) - 2) == '[]') {
+                $typePart = substr($typePart, 0, strlen($typePart) - 2);
+            }
+            if (!isset(self::$ignored_types[strtolower($typePart)])) {
+                $this->resolveType($statement, $this->nodeFromString($typePart), true);
+            }
+        }
+    }
+
 
     /**
      * Called once before traversal.
@@ -223,16 +241,12 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
 
                     if (is_array($doc->getParams())) {
                         foreach ($doc->getParams() as $param) {
-                            $type = $param->getType();
-                            foreach (explode('|', $type) as $typePart) {
-                                if (substr($type, strlen($typePart) - 2) == '[]') {
-                                    $typePart = substr($typePart, 0, strlen($typePart) - 2);
-                                }
-                                if (!isset(self::$ignored_types[strtolower($typePart)])) {
-                                    $this->resolveType($node, $this->nodeFromString($typePart), true);
-                                }
-                            }
+                            $this->resolveAnnotatedType($node, $param->getType());
                         }
+                    }
+
+                    if ($doc->getReturn()) {
+                        $this->resolveAnnotatedType($node, $doc->getReturn()->getType());
                     }
                 }
             }

@@ -3,10 +3,9 @@
 namespace bugfree\docblock;
 
 
-class Param
+class Returns
 {
     private $type;
-    private $name;
     private $description;
 
     /**
@@ -14,14 +13,7 @@ class Param
      */
     public function __construct($value)
     {
-        list($this->type, $this->name, $this->description) = preg_split('/\s+/', $value, 3) + ['', '', ''];
-
-        // Sometimes people prefer to have the variable name first, so if it looks like a variable name then swap.
-        if (count($this->type) > 1 && $this->type[0] == '$') {
-            $tmp = $this->name;
-            $this->name = $this->type;
-            $this->type = $tmp;
-        }
+        list($this->type, $this->description) = preg_split('/\s+/', $value, 2) + ['', ''];
     }
 
     /**
@@ -30,14 +22,6 @@ class Param
     public function getDescription()
     {
         return $this->description;
-    }
-
-    /**
-     * @return string the name for this param
-     */
-    public function getName()
-    {
-        return $this->name;
     }
 
     /**

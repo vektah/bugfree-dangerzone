@@ -1,11 +1,4 @@
 <?php
-/**
- * Created by IntelliJ IDEA.
- * User: adam
- * Date: 7/07/13
- * Time: 7:37 PM
- * To change this template use File | Settings | File Templates.
- */
 
 namespace bugfree\docblock;
 
@@ -15,8 +8,8 @@ class DocBlockTest extends \PHPUnit_Framework_TestCase
     public function testSingleParamAnnotation()
     {
         $doc = new DocBlock("/** @param string \$foo a foo */");
-        $param = $doc->getAnnotations('param')[0];
-        $this->assertInstanceOf('\bugfree\docblock\Param', $param);
+        $param = $doc->getParams()[0];
+        $this->assertInstanceOf(Param::_CLASS, $param);
         $this->assertEquals('string', $param->getType());
         $this->assertEquals('$foo', $param->getName());
         $this->assertEquals('a foo', $param->getDescription());
@@ -30,16 +23,25 @@ class DocBlockTest extends \PHPUnit_Framework_TestCase
               * @param turtle \$t a turtle
               */"
         );
-        $param = $doc->getAnnotations('param')[0];
-        $this->assertInstanceOf('\bugfree\docblock\Param', $param);
+        $param = $doc->getParams()[0];
+        $this->assertInstanceOf(Param::_CLASS, $param);
         $this->assertEquals('string', $param->getType());
         $this->assertEquals('$foo', $param->getName());
         $this->assertEquals('a foo', $param->getDescription());
 
-        $param = $doc->getAnnotations('param')[1];
-        $this->assertInstanceOf('\bugfree\docblock\Param', $param);
+        $param = $doc->getParams()[1];
+        $this->assertInstanceOf(Param::_CLASS, $param);
         $this->assertEquals('turtle', $param->getType());
         $this->assertEquals('$t', $param->getName());
         $this->assertEquals('a turtle', $param->getDescription());
+    }
+
+    public function testReturnAnnotation()
+    {
+        $doc = new DocBlock("/** @return string a foo */");
+        $return = $doc->getReturn();
+        $this->assertInstanceOf(Returns::_CLASS, $return);
+        $this->assertEquals('string', $return->getType());
+        $this->assertEquals('a foo', $return->getDescription());
     }
 }

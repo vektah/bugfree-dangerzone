@@ -388,6 +388,25 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider useProvider
      */
+    public function testUseResolutionInFunctionDocBlockReturnTypeHint($options)
+    {
+        $src = "<?php namespace testns;
+        use foo\\bar\\baz;
+        use foo\\Thing;
+
+        function doNotWarnAboutUnused(baz \$a, Thing \$b) {}
+
+        /**
+         * @return {$options['type']} a return value
+         */
+        function foo(\$a) {}
+        ";
+        $this->verifySource($src, $options);
+    }
+
+    /**
+     * @dataProvider useProvider
+     */
     public function testUseResolutionInFunctionDocBlockTypeHintArraySyntax($options)
     {
         $src = "<?php namespace testns;
