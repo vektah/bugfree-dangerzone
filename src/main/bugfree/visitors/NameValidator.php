@@ -122,12 +122,12 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
      * resolves a type that was found in a docblock annotation.
      *
      * @param \PHPParser_Node $statement
-     * @param $type
+     * @param string $type
      */
     private function resolveAnnotatedType(\PHPParser_Node $statement, $type)
     {
         foreach (explode('|', $type) as $typePart) {
-            if (substr($type, strlen($typePart) - 2) == '[]') {
+            if (substr($typePart, strlen($typePart) - 2) == '[]') {
                 $typePart = substr($typePart, 0, strlen($typePart) - 2);
             }
             if (!isset(self::$ignored_types[strtolower($typePart)])) {
