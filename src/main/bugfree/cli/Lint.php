@@ -6,6 +6,9 @@ namespace bugfree\cli;
 use bugfree\AutoloaderResolver;
 use bugfree\Bugfree;
 use bugfree\config\Config;
+use bugfree\output\OutputFormatter;
+use bugfree\output\TapFormatter;
+use bugfree\output\XUnitFormatter;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -32,6 +35,11 @@ class Lint extends Command
                 InputOption::VALUE_OPTIONAL,
                 "Run this file before starting analysis, Can be used on your projects vendor/autoload.php directly"
             )->addOption(
+                'tap',
+                null,
+                InputOption::VALUE_NONE,
+                "Output in TAP format"
+            )->addOption(
                 'config',
                 'c',
                 InputOption::VALUE_OPTIONAL,
@@ -42,6 +50,12 @@ class Lint extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        if ($input->hasOption('tap') && $input->getOption('tap')) {
+            $formatter = new TapFormatter($output);
+        } else {
+            $formatter = new XUnitFormatter($output);
+        }
+
         if ($input->hasOption('bootstrap') && is_string($input->getOption('bootstrap'))) {
             $bootstrap = $input->getOption('bootstrap');
 
@@ -56,14 +70,12 @@ class Lint extends Command
         $config = new Config();
 
         if ($input->hasOption('config') && is_string($input->getOption('config'))) {
-            $config_filename = $input->getOption('config');
+            $configFilename = $input->getOption('config');
 
 
-            if (!file_exists(stream_resolve_include_path($config_filename))) {
-                $output->writeln("Config '$config_filename' does not exist, try bugfree generateConfig");
-            } else {
-                $output->writeln("Config loaded from '$config_filename'\n");
-                $config = Config::load($config_filename);
+            if (file_exists(stream_resolve_include_path($configFilename))) {
+                $output->writeln("Config loaded from '$configFilename'\n");
+                $config = Config::load($configFilename);
             }
         }
 
@@ -81,11 +93,15 @@ class Lint extends Command
             $files = [$basedir];
         }
 
+        return $this->lintFiles($basedir, $config, $formatter, $files);
+    }
+
+    public function lintFiles($basedir, Config $config, OutputFormatter $formatter, array $files)
+    {
         $bugfree = new Bugfree(new AutoloaderResolver($basedir), $config);
 
         $count = count($files);
-        $output->writeln("TAP version 13");
-        $output->writeln("1..{$count}");
+        $formatter->begin($count);
 
         $status = self::SUCCESS;
         foreach ($files as $index => $file) {
@@ -93,33 +109,28 @@ class Lint extends Command
             try {
                 $result = $bugfree->parse($file, file_get_contents($file));
             } catch (\Exception $e) {
-                $output->writeln("not ok $testNumber - $file");
-
-                $output->writeln("\t---");
-                $output->writeln("\t - {$e->getMessage()}");
-                $output->writeln("\t...");
+                $formatter->testFailed($testNumber, $file, [$e->getMessage()], []);
                 continue;
             }
 
-            if (count($result->getErrors()) > 0 || count($result->getWarnings()) > 0) {
-                $output->writeln("not ok $testNumber - $file");
+            if (count($result->getErrors()) > 0) {
+                $status = self::ERROR;
+            }
 
-                $output->writeln("\t---");
-                foreach ($result->getErrors() as $error) {
-                    $status = self::ERROR;
-                    $output->writeln("\t" . $error);
+            if (count($result->getWarnings()) > 0) {
+                if ($status < self::WARNING) {
+                    $status = self::WARNING;
                 }
-                foreach ($result->getWarnings() as $warning) {
-                    if ($status < self::WARNING) {
-                        $status = self::WARNING;
-                    }
-                    $output->writeln("\t" . $warning);
-                }
-                $output->writeln("\t...");
+            }
+
+            if (count($result->getErrors()) > 0 || count($result->getWarnings()) > 0) {
+                $formatter->testFailed($testNumber, $file, $result->getErrors(), $result->getWarnings());
             } else {
-                $output->writeln("ok $testNumber - $file");
+                $formatter->testPassed($testNumber, $file);
             }
         }
+
+        $formatter->end($status);
 
         return $status;
     }
