@@ -3,7 +3,7 @@
 namespace bugfree\visitors;
 
 
-use bugfree\docblock\DocBlock;
+use bugfree\annotation\Docblock;
 use bugfree\ErrorType;
 use bugfree\Resolver;
 use bugfree\Result;
@@ -64,7 +64,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
      * @param \PHPParser_Node_Name $type    The class to resolve.
      * @param boolean $in_comment           If the type was found in a comment
      */
-    private function resolveType(\PHPParser_Node $statement, \PHPParser_Node_Name $type, $in_comment=false)
+    private function resolveType(\PHPParser_Node $statement, \PHPParser_Node_Name $type, $in_comment = false)
     {
         $qualifiedName = null;
         $parts = $type->parts;
@@ -237,23 +237,13 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
             if ($node instanceof \PHPParser_Node_Stmt_ClassMethod or
                 $node instanceof \PHPParser_Node_Stmt_Function or
                 $node instanceof \PHPParser_Node_Stmt_Property or
-                $node instanceOf \PHPParser_Node_Expr_Variable) {
+                $node instanceof \PHPParser_Node_Expr_Variable) {
 
                 if ($docblock = $node->getDocComment()) {
-                    $doc = new DocBlock($docblock->getText());
+                    $doc = new Docblock($docblock->getText());
 
-                    if (is_array($doc->getParams())) {
-                        foreach ($doc->getParams() as $param) {
-                            $this->resolveAnnotatedType($node, $param->getType());
-                        }
-                    }
-
-                    if ($doc->getReturn()) {
-                        $this->resolveAnnotatedType($node, $doc->getReturn()->getType());
-                    }
-
-                    foreach ($doc->getAnnotations('var') as $var) {
-                        $this->resolveAnnotatedType($node, $var->getType());
+                    foreach ($doc->getTypes() as $type) {
+                        $this->resolveAnnotatedType($node, $type);
                     }
                 }
             }

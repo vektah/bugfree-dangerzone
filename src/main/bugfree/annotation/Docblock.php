@@ -1,9 +1,8 @@
 <?php
 
 namespace bugfree\annotation;
-use Doctrine\Common\Annotations\DocLexer;
 
-require_once(__DIR__ . "/../../../../vendor/autoload.php");
+use Doctrine\Common\Annotations\DocLexer;
 
 /**
  * Use Doctrine annotation lexer to work out type information. We don't really care about anything other then
@@ -20,48 +19,104 @@ require_once(__DIR__ . "/../../../../vendor/autoload.php");
 class Docblock
 {
     private $types = [];
-    private static $common_tags_regex = '/
-        abstract|access|author|category|copyright|deprecated|example|final|filesource|global|ignore|internal|license|
-        link|method|name|package|param|property|return|see|since|static|staticvar|subpackage|todo|tutorial|uses|var|
-        version
-    /ix';
 
     /**
-     * @param string $docblock a docblock
+     * @param string $docblock a annotation
      */
     public function __construct($docblock)
     {
         $lexer = new DocLexer();
         $lexer->setInput($docblock);
-        $lastType = DocLexer::T_NONE;
+        $lexer->moveNext();
 
-        while ($token = $lexer->peek()) {
+        while ($token = $lexer->lookahead) {
             $token = new DoctrineAnnotationToken($token);
+            if ($token->getType() == DocLexer::T_AT && $lexer->peek()) {
+                $this->parseAnnotation($lexer);
+            }
 
-            if ($token->getType() == DocLexer::T_IDENTIFIER) {
-                // ignore common phpdocumentor tags.
-                if ($lastType == DocLexer::T_AT && preg_match(self::$common_tags_regex, $token->getValue())) {
-                    while ($next = $lexer->peek()) {
-                        if ($next['type'] == DocLexer::T_AT) {
-                            break;
+            if ($token->getType() == DocLexer::T_OPEN_PARENTHESIS) {
+                $this->parseParameterList($lexer, DocLexer::T_CLOSE_PARENTHESIS);
+            }
+
+            if ($token->getType() == DocLexer::T_OPEN_CURLY_BRACES) {
+                $this->parseParameterList($lexer, DocLexer::T_CLOSE_CURLY_BRACES);
+            }
+
+            $lexer->moveNext();
+        }
+    }
+
+    private function parseAnnotation(DocLexer $lexer)
+    {
+        $lexer->moveNext();
+        $token = new DoctrineAnnotationToken($token = $lexer->lookahead);
+        if ($token->isNonDoctrineAnnotation()) {
+            if ($token->isFollowedByType()) {
+                if ($type = $lexer->peek()) {
+                    // Often there are badly formed @param $foo with no type information. Make sure that we give a
+                    // reasonable 'type' value for these so the error is understandable.
+                    if ($type['value'] == '$') {
+                        if ($next = $lexer->peek()) {
+                            $typeString = "\${$next['value']}";
+                            $this->types[$typeString] = $typeString;
                         }
+
+
+                    } else {
+                        $this->types[$type['value']] = $type['value'];
                     }
-                } else {
-                    $this->types[$token->getValue()] = $token->getValue();
+
                 }
             }
-
-            // Ignore the identifier just before an equals. left hand side should never be a type.
-            if ($token->getType() == DocLexer::T_EQUALS) {
-                array_pop($this->types);
-            }
-
-            $lastType = $token->getType();
+        } else {
+            $this->types[$token->getValue()] = $token->getValue();
         }
     }
 
     /**
-     * @return string[] a list of all types seen in this docblock.
+     * Parses a second of docblock between brackets
+     *
+     * @param DocLexer $lexer
+     * @param int $endTokenType
+     */
+    public function parseParameterList(DocLexer $lexer, $endTokenType)
+    {
+        $lexer->moveNext();
+
+        while ($token = $lexer->lookahead) {
+            $token = new DoctrineAnnotationToken($token);
+
+            if ($token->getType() == $endTokenType) {
+                return;
+            }
+
+            // Search for the usual stuff...
+            if ($token->getType() == DocLexer::T_AT && $lexer->peek()) {
+                $this->parseAnnotation($lexer);
+            }
+
+            if ($token->getType() == DocLexer::T_OPEN_PARENTHESIS) {
+                $this->parseParameterList($lexer, DocLexer::T_CLOSE_PARENTHESIS);
+            }
+
+            if ($token->getType() == DocLexer::T_OPEN_CURLY_BRACES) {
+                $this->parseParameterList($lexer, DocLexer::T_CLOSE_CURLY_BRACES);
+            }
+
+            // But in here naked identifiers with :: in them are special!
+            if ($token->getType() == DocLexer::T_IDENTIFIER) {
+                if (preg_match('/(?P<type>.*)::(.*)/', $token->getValue(), $matches)) {
+                    $this->types[$matches['type']] = $matches['type'];
+                }
+            }
+
+            $lexer->moveNext();
+        }
+    }
+
+    /**
+     * @return string[] a list of all types seen in this annotation.
      */
     public function getTypes()
     {

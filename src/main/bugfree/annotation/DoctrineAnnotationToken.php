@@ -1,6 +1,7 @@
 <?php
 
 namespace bugfree\annotation;
+
 use Doctrine\Common\Annotations\DocLexer;
 
 /**
@@ -11,6 +12,14 @@ class DoctrineAnnotationToken
     private $value;
     private $type;
     private $position;
+
+    private static $nonDoctrineTags = '/
+        abstract|access|author|category|copyright|deprecated|example|final|filesource|global|ignore|internal|license|
+        link|name|package|see|since|static|staticvar|subpackage|todo|tutorial|uses|version|var|param|return|method|
+        property|dataProvider|throws
+    /ix';
+
+    private static $nonDoctrineTagsThatSpecifyType = '/var|param|return|method|property/i';
 
     private static $typeNames = [
         DocLexer::T_NONE => 'NONE',
@@ -84,5 +93,21 @@ class DoctrineAnnotationToken
     public function __toString()
     {
         return "{$this->getTypeName()}('{$this->value}')";
+    }
+
+    /**
+     * @return boolean matches non doctrine annotations like atvar and atparam
+     */
+    public function isNonDoctrineAnnotation()
+    {
+        return preg_match(self::$nonDoctrineTags, $this->value);
+    }
+
+    /**
+     * @return boolean
+     */
+    public function isFollowedByType()
+    {
+        return preg_match(self::$nonDoctrineTagsThatSpecifyType, $this->value);
     }
 }
