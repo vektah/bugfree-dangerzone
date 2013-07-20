@@ -60,11 +60,11 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
     }
 
     /**
-     * @param \PHPParser_Node $statement    The statement that this class was referenced in for error generation.
+     * @param int $line    The statement that this class was referenced in for error generation.
      * @param \PHPParser_Node_Name $type    The class to resolve.
      * @param boolean $in_comment           If the type was found in a comment
      */
-    private function resolveType(\PHPParser_Node $statement, \PHPParser_Node_Name $type, $in_comment = false)
+    private function resolveType($line, \PHPParser_Node_Name $type, $in_comment = false)
     {
         $qualifiedName = null;
         $parts = $type->parts;
@@ -82,7 +82,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
 
             $this->result->error(
                 $level,
-                $statement,
+                $line,
                 "Use of qualified type names is discouraged."
             );
         }
@@ -111,7 +111,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
 
             $this->result->error(
                 $level,
-                $statement,
+                $line,
                 "Type '$qualifiedName' could not be resolved."
             );
         }
@@ -121,17 +121,17 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
     /**
      * resolves a type that was found in a docblock annotation.
      *
-     * @param \PHPParser_Node $statement
-     * @param string $type
+     * @param int $line
+     * @param array $token
      */
-    private function resolveAnnotatedType(\PHPParser_Node $statement, $type)
+    private function resolveAnnotatedType($line, $token)
     {
-        foreach (explode('|', $type) as $typePart) {
+        foreach (explode('|', $token['type']) as $typePart) {
             if (substr($typePart, strlen($typePart) - 2) == '[]') {
                 $typePart = substr($typePart, 0, strlen($typePart) - 2);
             }
             if (!isset(self::$ignored_types[strtolower($typePart)])) {
-                $this->resolveType($statement, $this->nodeFromString($typePart), true);
+                $this->resolveType($line + $token['line'], $this->nodeFromString($typePart), true);
             }
         }
     }
@@ -175,7 +175,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
                     if (!$this->resolver->isValid("\\{$use->name}")) {
                         $this->result->error(
                             ErrorType::UNABLE_TO_RESOLVE_USE,
-                            $use,
+                            $use->getLine(),
                             "Use '\\{$use->name}' could not be resolved"
                         );
                     }
@@ -184,7 +184,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
                         $line = $this->aliases[$use->alias]->getNode()->getLine();
                         $this->result->error(
                             ErrorType::DUPLICATE_ALIAS,
-                            $use,
+                            $use->getLine(),
                             "Alias '{$use->alias}' is already in use on line $line'"
                         );
                     }
@@ -195,7 +195,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
                     // I don't know if this error can ever be generated, as it should be a parse error...
                     $this->result->error(
                         ErrorType::MALFORMED_USE,
-                        $use,
+                        $use->getLine(),
                         "Malformed use statement"
                     );
                     return;
@@ -205,33 +205,33 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
             if ($use_count > 1) {
                 $this->result->error(
                     ErrorType::MULTI_STATEMENT_USE,
-                    $node,
+                    $node->getLine(),
                     "Multiple uses in one statement is discouraged"
                 );
             }
         } else {
             if (isset($node->class) && $node->class instanceof \PHPParser_Node_Name) {
-                $this->resolveType($node, $node->class);
+                $this->resolveType($node->getLine(), $node->class);
             }
 
             if (isset($node->traits)) {
                 foreach ($node->traits as $trait) {
-                    $this->resolveType($node, $trait);
+                    $this->resolveType($node->getLine(), $trait);
                 }
             }
 
             if (isset($node->implements)) {
                 foreach ($node->implements as $implements) {
-                    $this->resolveType($node, $implements);
+                    $this->resolveType($node->getLine(), $implements);
                 }
             }
 
             if (isset($node->extends) && $node->extends instanceof \PHPParser_Node_Name) {
-                $this->resolveType($node, $node->extends);
+                $this->resolveType($node->getLine(), $node->extends);
             }
 
             if (isset($node->type) && $node->type instanceof \PHPParser_Node_Name) {
-                $this->resolveType($node, $node->type);
+                $this->resolveType($node->getLine(), $node->type);
             }
 
             if ($node instanceof \PHPParser_Node_Stmt_ClassMethod or
@@ -239,11 +239,12 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
                 $node instanceof \PHPParser_Node_Stmt_Property or
                 $node instanceof \PHPParser_Node_Expr_Variable) {
 
+                /** @var $docblock \PHPParser_Comment_Doc */
                 if ($docblock = $node->getDocComment()) {
                     $doc = new Docblock($docblock->getText());
 
                     foreach ($doc->getTypes() as $type) {
-                        $this->resolveAnnotatedType($node, $type);
+                        $this->resolveAnnotatedType($docblock->getLine(), $type);
                     }
                 }
             }

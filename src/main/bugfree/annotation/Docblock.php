@@ -18,19 +18,24 @@ use Doctrine\Common\Annotations\DocLexer;
  */
 class Docblock
 {
+    /** @var string[] */
     private $types = [];
+
+    /** @var string */
+    private $rawDocblock;
 
     /**
      * @param string $docblock a annotation
      */
     public function __construct($docblock)
     {
+        $this->rawDocblock = $docblock;
         $lexer = new DocLexer();
         $lexer->setInput($docblock);
         $lexer->moveNext();
 
         while ($token = $lexer->lookahead) {
-            $token = new DoctrineAnnotationToken($token);
+            $token = new DoctrineAnnotationToken($token, $docblock);
             if ($token->getType() == DocLexer::T_AT && $lexer->peek()) {
                 $this->parseAnnotation($lexer);
             }
@@ -50,27 +55,26 @@ class Docblock
     private function parseAnnotation(DocLexer $lexer)
     {
         $lexer->moveNext();
-        $token = new DoctrineAnnotationToken($token = $lexer->lookahead);
+        $token = new DoctrineAnnotationToken($token = $lexer->lookahead, $this->rawDocblock);
         if ($token->isNonDoctrineAnnotation()) {
             if ($token->isFollowedByType()) {
                 if ($type = $lexer->peek()) {
+                    $type = new DoctrineAnnotationToken($type, $this->rawDocblock);
                     // Often there are badly formed @param $foo with no type information. Make sure that we give a
                     // reasonable 'type' value for these so the error is understandable.
-                    if ($type['value'] == '$') {
+                    if ($type->getValue() == '$') {
                         if ($next = $lexer->peek()) {
-                            $typeString = "\${$next['value']}";
-                            $this->types[$typeString] = $typeString;
+                            $next = new DoctrineAnnotationToken($next, $this->rawDocblock);
+                            $typeString = "\${$next->getValue()}";
+                            $this->types[] = ['type' => $typeString, 'line' => $next->getLine()];
                         }
-
-
                     } else {
-                        $this->types[$type['value']] = $type['value'];
+                        $this->types[] = ['type' => $type->getValue(), 'line' => $type->getLine()];
                     }
-
                 }
             }
         } else {
-            $this->types[$token->getValue()] = $token->getValue();
+            $this->types[] = ['type' => $token->getValue(), 'line' => $token->getLine()];
         }
     }
 
@@ -85,7 +89,7 @@ class Docblock
         $lexer->moveNext();
 
         while ($token = $lexer->lookahead) {
-            $token = new DoctrineAnnotationToken($token);
+            $token = new DoctrineAnnotationToken($token, $this->rawDocblock);
 
             if ($token->getType() == $endTokenType) {
                 return;
@@ -107,7 +111,7 @@ class Docblock
             // But in here naked identifiers with :: in them are special!
             if ($token->getType() == DocLexer::T_IDENTIFIER) {
                 if (preg_match('/(?P<type>.*)::(.*)/', $token->getValue(), $matches)) {
-                    $this->types[$matches['type']] = $matches['type'];
+                    $this->types[] = ['type' => $matches['type'], 'line' => $token->getLine()];
                 }
             }
 
@@ -120,6 +124,6 @@ class Docblock
      */
     public function getTypes()
     {
-        return array_values($this->types);
+        return $this->types;
     }
 }

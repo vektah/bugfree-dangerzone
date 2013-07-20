@@ -8,23 +8,26 @@ class DocblockTest extends \PHPUnit_Framework_TestCase
     public function docblockProvider()
     {
         return [
-            ["/** @param string \$foo a foo */", ['string']],
+            ["/** @param string \$foo a foo */", [['type' => 'string', 'line' => 0]]],
 
-            ["/** @param \$foo a foo */", ['$foo']],    // Even though type is missing we need to display something.
+            // Even though type is missing we need to display something.
+            ["/** @param \$foo a foo */", [['type' => '$foo', 'line' => 0]]],
 
             ["/**
               * @param string \$foo a foo
               * @param turtle \$t a turtle
-              */", ['string', 'turtle']
+              */",
+              [['type' => 'string', 'line' => 1],
+               ['type' => 'turtle', 'line' => 2]]
             ],
 
-            ['/** @return string a foo */', ['string']],
+            ['/** @return string a foo */', [['type' => 'string', 'line' => 0]]],
 
-            ['/** @var string a foo */', ['string']],
+            ['/** @var string a foo */', [['type' => 'string', 'line' => 0]]],
 
-            ['/** @method string foobar(Asdf $foo) */', ['string']],
+            ['/** @method string foobar(Asdf $foo) */', [['type' => 'string', 'line' => 0]]],
 
-            ['/** @param string $foo a foo */', ['string']],
+            ['/** @param string $foo a foo */', [['type' => 'string', 'line' => 0]]],
 
             [
             "/**
@@ -33,7 +36,10 @@ class DocblockTest extends \PHPUnit_Framework_TestCase
               * @param string \$foo a foo
               * @param turtle \$t a turtle
               */",
-                ['string', 'turtle']
+                [
+                    ['type' => 'string', 'line' => 3],
+                    ['type' => 'turtle', 'line' => 4]
+                ]
             ],
 
             ['/**
@@ -42,7 +48,12 @@ class DocblockTest extends \PHPUnit_Framework_TestCase
                * @DiscriminatorColumn(name="discr", type="string")
                * @DiscriminatorMap({"person" = "Person", "employee" = "Employee"})
                */',
-                ['Entity', 'InheritanceType', 'DiscriminatorColumn', 'DiscriminatorMap']
+                [
+                    ['type' => 'Entity', 'line' => 1],
+                    ['type' => 'InheritanceType', 'line' => 2],
+                    ['type' => 'DiscriminatorColumn', 'line' => 3],
+                    ['type' => 'DiscriminatorMap', 'line' => 4]
+                ]
             ],
 
             [
@@ -55,7 +66,12 @@ class DocblockTest extends \PHPUnit_Framework_TestCase
                  *      inverseJoinColumns={@JoinColumn(name="group_id", referencedColumnName="id")}
                  *      )
                  */',
-                ['ManyToMany', 'JoinTable', 'JoinColumn']
+                [
+                    ['type' => 'ManyToMany', 'line' => 3],
+                    ['type' => 'JoinTable', 'line' => 4],
+                    ['type' => 'JoinColumn', 'line' => 5],
+                    ['type' => 'JoinColumn', 'line' => 6],
+                ]
             ],
             [
                '/**
@@ -64,7 +80,17 @@ class DocblockTest extends \PHPUnit_Framework_TestCase
                  * @Foo({SomeClass1::FOO, SomeClass3::BAR})
                  * @Bar({SomeClass2::FOO_KEY = SomeClass4::BAR_VALUE})
                  */',
-                ['Foo', 'Bar', 'SomeClass1', 'SomeClass3', 'SomeClass2', 'SomeClass4']
+                [
+                    ['type' => 'Foo',       'line' => 1],
+                    ['type' => 'Bar',       'line' => 2],
+                    ['type' => 'Bar',       'line' => 2],
+                    ['type' => 'Foo',       'line' => 3],
+                    ['type' => 'SomeClass1','line' => 3],
+                    ['type' => 'SomeClass3','line' => 3],
+                    ['type' => 'Bar',       'line' => 4],
+                    ['type' => 'SomeClass2','line' => 4],
+                    ['type' => 'SomeClass4','line' => 4],
+                ]
             ]
         ];
     }

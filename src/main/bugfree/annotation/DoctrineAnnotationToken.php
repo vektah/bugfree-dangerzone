@@ -12,6 +12,7 @@ class DoctrineAnnotationToken
     private $value;
     private $type;
     private $position;
+    private $line;
 
     private static $nonDoctrineTags = '/
         abstract|access|author|category|copyright|deprecated|example|final|filesource|global|ignore|internal|license|
@@ -43,12 +44,26 @@ class DoctrineAnnotationToken
 
     /**
      * @param array $token the raw doctrine token
+     * @param string $docblock the raw docblock that this token was found in.
      */
-    public function __construct(array $token)
+    public function __construct(array $token, $docblock)
     {
         $this->value = $token['value'];
         $this->position = $token['position'];
         $this->type = $token['type'];
+        $this->line = $this->calculateLine($this->position, $docblock);
+    }
+
+    /**
+     * Returns the line that this character offset is on.
+     *
+     * @param int $position
+     * @param string $docblock
+     * @return int
+     */
+    private function calculateLine($position, $docblock)
+    {
+        return preg_match_all('/[^\r]\n|\r\n|\r[^\n]/', substr($docblock, 0, $position));
     }
 
     /**
@@ -57,6 +72,11 @@ class DoctrineAnnotationToken
     public function getPosition()
     {
         return $this->position;
+    }
+
+    public function getLine()
+    {
+        return $this->line;
     }
 
     /**

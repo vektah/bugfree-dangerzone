@@ -16,7 +16,7 @@
     "require": {
         "nikic/php-parser": "0.9.3",
         "symfony/console": "2.3.1",
-        "doctrine/annotations": "*"
+        "doctrine/annotations": "1.1.2"
     },
 
     "require-dev": {

@@ -29,11 +29,12 @@ class Result
      * Adds an error
      *
      * @param string $type Constant from ErrorType::*
-     * @param \PHPParser_Node $statement
+     * @param int $line
      * @param string $message
      * @throws \UnexpectedValueException
+     * @param string $message
      */
-    public function error($type, $statement, $message)
+    public function error($type, $line, $message)
     {
         if (!isset($this->config->emitLevel->$type)) {
             throw new \UnexpectedValueException("$type must be one of the ErrorType::* constants");
@@ -45,8 +46,8 @@ class Result
         }
 
         $locator = $this->name;
-        if ($statement) {
-            $locator .= ":{$statement->getLine()}";
+        if ($line) {
+            $locator .= ":$line";
         }
 
         if ($level == ErrorType::ERROR) {
