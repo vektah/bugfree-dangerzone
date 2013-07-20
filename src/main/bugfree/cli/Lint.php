@@ -40,6 +40,11 @@ class Lint extends Command
                 InputOption::VALUE_NONE,
                 "Output in TAP format"
             )->addOption(
+                'exclude',
+                null,
+                InputOption::VALUE_REQUIRED,
+                "Do not attempt to check file names that match this regex."
+            )->addOption(
                 'config',
                 'c',
                 InputOption::VALUE_OPTIONAL,
@@ -79,6 +84,11 @@ class Lint extends Command
             }
         }
 
+        $exclude = null;
+        if ($input->hasOption('exclude') && is_string($input->getOption('exclude'))) {
+            $exclude = $input->getOption('exclude');
+        }
+
         $basedir = $input->getArgument('dir');
         if (is_dir($basedir)) {
             $directory = new \RecursiveDirectoryIterator($basedir);
@@ -87,7 +97,11 @@ class Lint extends Command
 
             $files = [];
             foreach ($phpFiles as $it) {
-                $files[] = (string)$it[0];
+                $filename = (string)$it[0];
+                if ($exclude && preg_match("$exclude", $filename)) {
+                    continue;
+                }
+                $files[] = $filename;
             }
         } else {
             $files = [$basedir];

@@ -40,14 +40,6 @@ class Docblock
                 $this->parseAnnotation($lexer);
             }
 
-            if ($token->getType() == DocLexer::T_OPEN_PARENTHESIS) {
-                $this->parseParameterList($lexer, DocLexer::T_CLOSE_PARENTHESIS);
-            }
-
-            if ($token->getType() == DocLexer::T_OPEN_CURLY_BRACES) {
-                $this->parseParameterList($lexer, DocLexer::T_CLOSE_CURLY_BRACES);
-            }
-
             $lexer->moveNext();
         }
     }
@@ -63,10 +55,9 @@ class Docblock
                     // Often there are badly formed @param $foo with no type information. Make sure that we give a
                     // reasonable 'type' value for these so the error is understandable.
                     if ($type->getValue() == '$') {
-                        if ($next = $lexer->peek()) {
+                        if ($lexer->peek() && $next = $lexer->peek()) {
                             $next = new DoctrineAnnotationToken($next, $this->rawDocblock);
-                            $typeString = "\${$next->getValue()}";
-                            $this->types[] = ['type' => $typeString, 'line' => $next->getLine()];
+                            $this->types[] = ['type' => $next->getValue(), 'line' => $next->getLine()];
                         }
                     } else {
                         $this->types[] = ['type' => $type->getValue(), 'line' => $type->getLine()];
@@ -75,6 +66,24 @@ class Docblock
             }
         } else {
             $this->types[] = ['type' => $token->getValue(), 'line' => $token->getLine()];
+
+            while ($token = $lexer->lookahead) {
+                $token = new DoctrineAnnotationToken($token, $this->rawDocblock);
+
+                if ($token->getType() == DocLexer::T_AT && $lexer->peek()) {
+                    $this->parseAnnotation($lexer);
+                }
+
+                if ($token->getType() == DocLexer::T_OPEN_PARENTHESIS) {
+                    $this->parseParameterList($lexer, DocLexer::T_CLOSE_PARENTHESIS);
+                }
+
+                if ($token->getType() == DocLexer::T_OPEN_CURLY_BRACES) {
+                    $this->parseParameterList($lexer, DocLexer::T_CLOSE_CURLY_BRACES);
+                }
+
+                $lexer->moveNext();
+            }
         }
     }
 

@@ -14,13 +14,13 @@ class DoctrineAnnotationToken
     private $position;
     private $line;
 
-    private static $nonDoctrineTags = '/
+    private static $nonDoctrineTags = '/^
         abstract|access|author|category|copyright|deprecated|example|final|filesource|global|ignore|internal|license|
         link|name|package|see|since|static|staticvar|subpackage|todo|tutorial|uses|version|var|param|return|method|
-        property|dataProvider|throws
-    /ix';
+        property|dataProvider|throws|inheritdoc|expectedException|expectedExceptionMessage|api
+    $/ix';
 
-    private static $nonDoctrineTagsThatSpecifyType = '/var|param|return|method|property/i';
+    private static $nonDoctrineTagsThatSpecifyType = '/^var|param|return|method|property|expectedException$/i';
 
     private static $typeNames = [
         DocLexer::T_NONE => 'NONE',

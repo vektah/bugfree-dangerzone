@@ -10,8 +10,7 @@ class DocblockTest extends \PHPUnit_Framework_TestCase
         return [
             ["/** @param string \$foo a foo */", [['type' => 'string', 'line' => 0]]],
 
-            // Even though type is missing we need to display something.
-            ["/** @param \$foo a foo */", [['type' => '$foo', 'line' => 0]]],
+            ["/** @param \$foo a foo */", [['type' => 'a', 'line' => 0]]],
 
             ["/**
               * @param string \$foo a foo

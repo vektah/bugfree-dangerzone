@@ -44,9 +44,11 @@ class Bugfree
         $result = new Result($name, $this->config);
         $parser = new \PHPParser_Parser(new \PHPParser_Lexer());
 
+        $nodes = $parser->parse($source);
+
         $traverser = new \PHPParser_NodeTraverser();
         $traverser->addVisitor(new NameValidator($result, $this->resolver));
-        $traverser->traverse($parser->parse($source));
+        $traverser->traverse($nodes);
 
         return $result;
     }
