@@ -10,7 +10,11 @@ class Config
     /** @var EmitLevel */
     public $emitLevel;
 
-    public function __construct() {
+    /** @var boolean if true quick fixes will be made like removing unused uses. */
+    public $autoFix = false;
+
+    public function __construct()
+    {
         $this->emitLevel = new EmitLevel();
     }
 

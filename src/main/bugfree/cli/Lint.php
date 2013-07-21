@@ -6,6 +6,7 @@ namespace bugfree\cli;
 use bugfree\AutoloaderResolver;
 use bugfree\Bugfree;
 use bugfree\config\Config;
+use bugfree\fix\Fix;
 use bugfree\output\OutputFormatter;
 use bugfree\output\TapFormatter;
 use bugfree\output\XUnitFormatter;
@@ -44,6 +45,11 @@ class Lint extends Command
                 null,
                 InputOption::VALUE_REQUIRED,
                 "Do not attempt to check file names that match this regex."
+            )->addOption(
+                'autoFix',
+                'a',
+                InputOption::VALUE_NONE,
+                'Automatically fix common problems.'
             )->addOption(
                 'config',
                 'c',
@@ -84,6 +90,10 @@ class Lint extends Command
             }
         }
 
+        if ($input->hasOption('autoFix') && $input->getOption('autoFix')) {
+            $config->autoFix = true;
+        }
+
         $exclude = null;
         if ($input->hasOption('exclude') && is_string($input->getOption('exclude'))) {
             $exclude = $input->getOption('exclude');
@@ -121,7 +131,8 @@ class Lint extends Command
         foreach ($files as $index => $file) {
             $testNumber = $index+1;
             try {
-                $result = $bugfree->parse($file, file_get_contents($file));
+                $rawFileContents = file_get_contents($file);
+                $result = $bugfree->parse($file, $rawFileContents);
             } catch (\Exception $e) {
                 $formatter->testFailed($testNumber, $file, [$e->getMessage()], []);
                 continue;
@@ -141,6 +152,27 @@ class Lint extends Command
                 $formatter->testFailed($testNumber, $file, $result->getErrors(), $result->getWarnings());
             } else {
                 $formatter->testPassed($testNumber, $file);
+            }
+
+            if (count($result->getFixes()) > 0) {
+                $fixes = $result->getFixes();
+                // Sort them and apply them in reverse order.
+                /** @var $fixLines Fix[] */
+                $fixLines = [];
+                foreach ($fixes as $fix) {
+                    $fixLines[$fix->getLine()] = $fix;
+                }
+
+                krsort($fixLines);
+
+                $fileLines = preg_split('/\r|\r\n|\n/', $rawFileContents);
+                foreach ($fixLines as $fix) {
+                    $fix->run($fileLines);
+                }
+
+                var_dump($fileLines);
+
+                file_put_contents($file, implode("\n", $fileLines));
             }
         }
 

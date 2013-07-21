@@ -4,6 +4,7 @@ namespace bugfree;
 
 
 use bugfree\config\Config;
+use bugfree\fix\Fix;
 
 class Result
 {
@@ -15,6 +16,9 @@ class Result
 
     /** @var string[] */
     private $warnings = [];
+
+    /** @var Fix[] */
+    private $fixes = [];
 
     /** @var Config */
     private $config;
@@ -57,6 +61,11 @@ class Result
         }
     }
 
+    public function fix(Fix $fix)
+    {
+        $this->fixes[] = $fix;
+    }
+
     /**
      * @return string[] all of the errors in this file.
      */
@@ -71,5 +80,21 @@ class Result
     public function getWarnings()
     {
         return $this->warnings;
+    }
+
+    /**
+     * @return Fix[] all of the suggested fixes for this file
+     */
+    public function getFixes()
+    {
+        return $this->fixes;
+    }
+
+    /**
+     * @return Config
+     */
+    public function getConfig()
+    {
+        return $this->config;
     }
 }

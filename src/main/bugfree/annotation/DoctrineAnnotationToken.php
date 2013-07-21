@@ -63,7 +63,7 @@ class DoctrineAnnotationToken
      */
     private function calculateLine($position, $docblock)
     {
-        return preg_match_all('/[^\r]\n|\r\n|\r[^\n]/', substr($docblock, 0, $position));
+        return preg_match_all('/\n|\r\n|\r/', substr($docblock, 0, $position));
     }
 
     /**

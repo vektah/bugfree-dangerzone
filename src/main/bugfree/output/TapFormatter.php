@@ -31,7 +31,7 @@ class TapFormatter implements OutputFormatter
         $message = join("\n", array_merge($errors, $warnings));
         $this->output->writeln("not ok $testNumber - $filename");
 
-        $message = preg_replace('/\r[^n]|\r\n|[^r]\n/', "\n  ", $message);
+        $message = preg_replace('/\r|\r\n|\n/', "\n  ", $message);
         fwrite(STDERR, "  ---\n");
         fwrite(STDERR, "  $message\n");
         fwrite(STDERR, "  ...\n");

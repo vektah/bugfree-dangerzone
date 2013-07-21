@@ -5,6 +5,7 @@ namespace bugfree\visitors;
 
 use bugfree\annotation\Docblock;
 use bugfree\ErrorType;
+use bugfree\fix\RemoveLineFix;
 use bugfree\Resolver;
 use bugfree\Result;
 use bugfree\UseTracker;
@@ -283,11 +284,12 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
 
         foreach ($this->aliases as $use) {
             if ($use->getUseCount() == 0) {
-                $this->result->error(
-                    ErrorType::UNUSED_USE,
-                    null,
-                    "Use '{$use->getName()}' is not being used"
-                );
+                $errorMsg = "Use '{$use->getName()}' is not being used";
+                if ($this->result->getConfig()->autoFix) {
+                    $this->result->fix(new RemoveLineFix($use->getNode()->getLine(), $errorMsg));
+                } else {
+                    $this->result->error(ErrorType::UNUSED_USE, null, $errorMsg);
+                }
             }
         }
     }
