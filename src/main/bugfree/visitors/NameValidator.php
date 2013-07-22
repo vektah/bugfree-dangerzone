@@ -225,10 +225,16 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
                 foreach ($node->implements as $implements) {
                     $this->resolveType($node->getLine(), $implements);
                 }
-            }
+			}
 
-            if (isset($node->extends) && $node->extends instanceof \PHPParser_Node_Name) {
-                $this->resolveType($node->getLine(), $node->extends);
+			if (isset($node->extends)) {
+				if($node->extends instanceof \PHPParser_Node_name) {
+					$this->resolveType($node->getLine(), $node->extends);
+				} else {
+					foreach ($node->extends as $extends) {
+						$this->resolveType($node->getLine(), $extends);
+					}
+				}
             }
 
             if (isset($node->type) && $node->type instanceof \PHPParser_Node_Name) {

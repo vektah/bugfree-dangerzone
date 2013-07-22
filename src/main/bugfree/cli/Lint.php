@@ -170,8 +170,6 @@ class Lint extends Command
                     $fix->run($fileLines);
                 }
 
-                var_dump($fileLines);
-
                 file_put_contents($file, implode("\n", $fileLines));
             }
         }
