@@ -238,6 +238,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
             if ($node instanceof \PHPParser_Node_Stmt_ClassMethod or
                 $node instanceof \PHPParser_Node_Stmt_Function or
                 $node instanceof \PHPParser_Node_Stmt_Property or
+                $node instanceof \PHPParser_Node_Stmt_Class or
                 $node instanceof \PHPParser_Node_Expr_Variable) {
 
                 /** @var $docblock \PHPParser_Comment_Doc */
