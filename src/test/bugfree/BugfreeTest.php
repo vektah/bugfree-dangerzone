@@ -288,6 +288,43 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider useProvider
      */
+    public function testThrow($options)
+    {
+        $src = "<?php namespace testns;
+        use foo\\bar\\baz;
+        use foo\\Thing;
+
+        function doNotWarnAboutUnused(baz \$a, Thing \$b) {}
+
+        throw new {$options['type']}();
+        ";
+        $this->verifySource($src, $options);
+    }
+
+    /**
+     * @dataProvider useProvider
+     */
+    public function testThrowStatic($options)
+    {
+        $src = "<?php namespace testns;
+        use foo\\bar\\baz;
+        use foo\\Thing;
+
+        function doNotWarnAboutUnused(baz \$a, Thing \$b) {}
+
+        class foo {
+            protected function bar() {
+                throw {$options['type']}::foobar();
+            }
+        }
+
+        ";
+        $this->verifySource($src, $options);
+    }
+
+    /**
+     * @dataProvider useProvider
+     */
     public function testNew($options)
     {
         $src = "<?php namespace testns;
