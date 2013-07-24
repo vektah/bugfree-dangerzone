@@ -7,7 +7,9 @@ use bugfree\AutoloaderResolver;
 use bugfree\Bugfree;
 use bugfree\config\Config;
 use bugfree\fix\Fix;
+use bugfree\output\JunitOutputFormatter;
 use bugfree\output\OutputFormatter;
+use bugfree\output\OutputMuxer;
 use bugfree\output\TapFormatter;
 use bugfree\output\XUnitFormatter;
 use Symfony\Component\Console\Command\Command;
@@ -50,6 +52,11 @@ class Lint extends Command
                 'a',
                 InputOption::VALUE_NONE,
                 'Automatically fix common problems.'
+            )->addOption(
+                'junitXml',
+                'x',
+                InputOption::VALUE_REQUIRED,
+                'Output junit xml to the file provided.'
             )->addOption(
                 'config',
                 'c',
@@ -97,6 +104,14 @@ class Lint extends Command
         $exclude = null;
         if ($input->hasOption('exclude') && is_string($input->getOption('exclude'))) {
             $exclude = $input->getOption('exclude');
+        }
+
+        if ($input->hasOption('junitXml') && is_string($xmlFilename = $input->getOption('junitXml'))) {
+            $stdout = $formatter;
+
+            $formatter = new OutputMuxer();
+            $formatter->add($stdout)
+                ->add(new JunitOutputFormatter($xmlFilename));
         }
 
         $basedir = $input->getArgument('dir');
