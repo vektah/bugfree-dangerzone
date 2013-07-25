@@ -17,8 +17,9 @@ class EmitLevel
     public $multiStatementUse = ErrorType::WARNING;
     public $missingNamespace = ErrorType::ERROR;
     public $unusedUse = ErrorType::WARNING;
+    public $disorganizedUses = ErrorType::WARNING;
 
-    public function __construct(array $values=[])
+    public function __construct(array $values = [])
     {
         foreach ($values as $key => $value) {
             $this->$key = $value;

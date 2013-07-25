@@ -15,6 +15,7 @@ class ErrorType
     const MULTI_STATEMENT_USE                   = 'multiStatementUse';
     const MISSING_NAMESPACE                     = 'missingNamespace';
     const UNUSED_USE                            = 'unusedUse';
+    const DISORGANIZED_USES                     = 'disorganizedUses';
 
     const WARNING = 'warning';
     const ERROR = 'error';
