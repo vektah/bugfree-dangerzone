@@ -3,12 +3,14 @@
 namespace bugfree\visitors;
 
 
-use bugfree\annotation\Docblock;
 use bugfree\ErrorType;
-use bugfree\fix\RemoveLineFix;
 use bugfree\Resolver;
 use bugfree\Result;
 use bugfree\UseTracker;
+use bugfree\annotation\Docblock;
+use bugfree\fix\RemoveLineFix;
+use bugfree\fix\SwapLineFix;
+use bugfree\helper\UseStatementOrganizer;
 
 /**
  * Fairly similar to PHP Parser's NameResolver except:
@@ -25,6 +27,9 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
 
     /** @var UseTracker[] UseTrackers keyed on alias */
     private $aliases = [];
+
+    /** @var \PHPParser_Node_Stmt_UseUse[] */
+    private $useStatements = [];
 
     /** @var Result */
     private $result;
@@ -168,7 +173,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
     public function enterNode(\PHPParser_Node $node)
     {
         if ($node instanceof \PHPParser_Node_Stmt_Namespace) {
-                $this->namespace = '\\' . $node->name;
+            $this->namespace = '\\' . $node->name;
         } elseif ($node instanceof \PHPParser_Node_Stmt_Use) {
             $use_count = 0;
             foreach ($node->uses as $use) {
@@ -191,6 +196,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
                     }
 
                     $this->aliases[$use->alias] = new UseTracker($use->alias, $use->name, $use);
+                    $this->useStatements[] = $use;
 
                 } else {
                     // I don't know if this error can ever be generated, as it should be a parse error...
@@ -289,11 +295,37 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
             );
         }
 
+        $useStatementOrganizer = new UseStatementOrganizer($this->useStatements);
+        $lineNumberMapping = [];
+
+        if (!$useStatementOrganizer->areOrganized()) {
+            $errorMsg = "Uses are not organized";
+            if ($this->result->getConfig()->autoFix) {
+                $lineSwaps = $useStatementOrganizer->getLineSwaps();
+                $lineNumberMapping = $useStatementOrganizer->getLineNumberMapping();
+
+                foreach ($lineSwaps as $currentLine => $newLine) {
+                    $fix = new SwapLineFix($currentLine, $newLine, $errorMsg);
+                    $this->result->fix($fix);
+                }
+            } else {
+                $this->result->error(ErrorType::DISORGANIZED_USES, null, $errorMsg);
+            }
+        }
+
         foreach ($this->aliases as $use) {
             if ($use->getUseCount() == 0) {
                 $errorMsg = "Use '{$use->getName()}' is not being used";
                 if ($this->result->getConfig()->autoFix) {
-                    $this->result->fix(new RemoveLineFix($use->getNode()->getLine(), $errorMsg));
+                    $line = $use->getNode()->getLine();
+
+                    // if organization occurred the line may have moved
+                    if (isset($lineNumberMapping[$line])) {
+                        $line = $lineNumberMapping[$line];
+                    }
+
+                    $fix = new RemoveLineFix($line, $errorMsg);
+                    $this->result->fix($fix);
                 } else {
                     $this->result->error(ErrorType::UNUSED_USE, null, $errorMsg);
                 }

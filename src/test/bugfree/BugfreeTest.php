@@ -3,8 +3,8 @@
 namespace bugfree;
 
 
-use bugfree\config\Config;
 use Phake;
+use bugfree\config\Config;
 
 class BugfreeTest extends \PHPUnit_Framework_TestCase
 {
@@ -18,7 +18,10 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
         $this->resolver = Phake::mock(Resolver::_CLASS);
         Phake::when($this->resolver)->isValid(Phake::anyParameters())->thenReturn(true);
 
-        $this->bugfree = new Bugfree($this->resolver, new Config());
+        $config = new Config();
+        $config->emitLevel->{ErrorType::DISORGANIZED_USES} = ErrorType::SUPPRESS;
+
+        $this->bugfree = new Bugfree($this->resolver, $config);
     }
 
     private function assertArrayValuesContains(array $array, $string)
