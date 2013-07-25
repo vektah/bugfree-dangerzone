@@ -135,7 +135,7 @@ class Lint extends Command
         return $this->lintFiles($basedir, $config, $formatter, $files);
     }
 
-    public function lintFiles($basedir, Config $config, OutputFormatter $formatter, array $files)
+    private function lintFiles($basedir, Config $config, OutputFormatter $formatter, array $files)
     {
         $bugfree = new Bugfree(new AutoloaderResolver($basedir), $config);
 

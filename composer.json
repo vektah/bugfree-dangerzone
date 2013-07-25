@@ -20,7 +20,7 @@
     },
 
     "require-dev": {
-        "phake/phake": "1.0.3",
+        "phake/phake": "v2.0.0-alpha2",
         "phpunit/phpunit": "3.7.21"
     },
 
