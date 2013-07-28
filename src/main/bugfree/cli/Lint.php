@@ -171,17 +171,9 @@ class Lint extends Command
 
             if (count($result->getFixes()) > 0) {
                 $fixes = $result->getFixes();
-                // Sort them and apply them in reverse order.
-                /** @var $fixLines Fix[] */
-                $fixLines = [];
-                foreach ($fixes as $fix) {
-                    $fixLines[$fix->getLine()] = $fix;
-                }
-
-                krsort($fixLines);
 
                 $fileLines = preg_split('/\r|\r\n|\n/', $rawFileContents);
-                foreach ($fixLines as $fix) {
+                foreach ($fixes as $fix) {
                     $fix->run($fileLines);
                 }
 
