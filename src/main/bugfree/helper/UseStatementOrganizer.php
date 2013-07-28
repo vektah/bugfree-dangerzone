@@ -18,7 +18,7 @@ class UseStatementOrganizer
     private $organizedUseStatements = [];
 
     /** @var array */
-    private $lineNumberMapping = null;
+    private $lineNumberMovements = null;
 
     /**
      * @param UseStatement[] $useStatements An array of use statements in the order they are defined
@@ -44,10 +44,7 @@ class UseStatementOrganizer
             $i = 0;
 
             while ($i < $numParts) {
-                $aPart = $aParts[$i];
-                $bPart = $bParts[$i];
-
-                // sort \a\b\c\Class before \a\b\c\a\Class
+                // sort \a\b\c\DClass before \a\b\c\d\EClass
                 $isLastAPart = $i == ($aNumParts - 1);
                 $isLastBPart = $i == ($bNumParts - 1);
 
@@ -57,7 +54,25 @@ class UseStatementOrganizer
                     return 1;
                 }
 
+                $aPart = $aParts[$i];
+                $bPart = $bParts[$i];
+
                 $comparison = strcasecmp($aPart, $bPart);
+
+                // if the last part of both namespaces is the same, sort by no alias then alias
+                if ($isLastAPart && $isLastBPart && $comparison === 0) {
+                    $aAlias = $a->alias;
+                    $bAlias = $b->alias;
+
+                    // alias is set to the last part of the namespace if not explicitly defined
+                    if ($aAlias === $aPart) {
+                        return -1;
+                    } elseif ($bAlias === $bPart) {
+                        return 1;
+                    }
+
+                    return strcmp($aAlias, $bAlias);
+                }
 
                 if ($comparison !== 0) {
                     return $comparison;
@@ -99,7 +114,16 @@ class UseStatementOrganizer
         $useStrings = [];
 
         foreach ($useStatements as $useStatement) {
-            $useStrings[] = $useStatement->name->toString();
+            $name = $useStatement->name;
+            $namespace = $name->toString();
+            $alias = $useStatement->alias;
+
+            // alias defaults to the last part of the name
+            if ($name->getLast() != $alias) {
+                $namespace = $namespace . " as " . $alias;
+            }
+
+            $useStrings[] = $namespace;
         }
 
         return $useStrings;
@@ -118,23 +142,25 @@ class UseStatementOrganizer
         $organizedLineNumbers = $this->useStatementsToLineNumbers($this->organizedUseStatements);
 
         // keep track of the swaps
-        $this->lineNumberMapping = [];
+        $lineNumberMapping = [];
         foreach ($currentLineNumbers as $currentLineNumber) {
-            $this->lineNumberMapping[$currentLineNumber] = $currentLineNumber;
+            $lineNumberMapping[$currentLineNumber] = $currentLineNumber;
         }
 
         // start from the bottom
         for ($organizedIndex = count($organizedLineNumbers) - 1; $organizedIndex >= 0; $organizedIndex--) {
             $currentLineNumber = $currentLineNumbers[$organizedIndex];
             $organizedLineNumber = $organizedLineNumbers[$organizedIndex];
-            $newLineNumber = array_search($organizedLineNumber, $this->lineNumberMapping);
+            $newLineNumber = array_search($organizedLineNumber, $lineNumberMapping);
 
             if ($currentLineNumber != $newLineNumber) {
-                $this->lineNumberMapping = $this->swap($this->lineNumberMapping, $currentLineNumber, $newLineNumber);
+                $lineNumberMapping = $this->swap($lineNumberMapping, $currentLineNumber, $newLineNumber);
 
                 $lineSwaps[$currentLineNumber] = $newLineNumber;
             }
         }
+
+        $this->lineNumberMovements = array_flip($lineNumberMapping);
 
         return $lineSwaps;
     }
@@ -173,16 +199,16 @@ class UseStatementOrganizer
 
     /**
      * Returns a hash with key of the current line number and value of the line
-     * number it should be at.
+     * number it should be moved to.
      *
      * @return array
      */
-    public function getLineNumberMapping()
+    public function getLineNumberMovements()
     {
-        if (!$this->lineNumberMapping) {
-            throw \BadMethodCallException("You must call getLineSwaps() before calling this function");
+        if (!$this->lineNumberMovements) {
+            throw new \BadMethodCallException("You must call getLineSwaps() before calling this function");
         }
 
-        return $this->lineNumberMapping;
+        return $this->lineNumberMovements;
     }
 }

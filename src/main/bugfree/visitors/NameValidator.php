@@ -295,17 +295,20 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
             );
         }
 
+        $autoFix = $this->result->getConfig()->autoFix;
+
         $useStatementOrganizer = new UseStatementOrganizer($this->useStatements);
-        $lineNumberMapping = [];
+        $lineNumberMovements = [];
 
         if (!$useStatementOrganizer->areOrganized()) {
             $errorMsg = "Uses are not organized";
-            if ($this->result->getConfig()->autoFix) {
+            if ($autoFix) {
                 $lineSwaps = $useStatementOrganizer->getLineSwaps();
-                $lineNumberMapping = $useStatementOrganizer->getLineNumberMapping();
+                $lineNumberMovements = $useStatementOrganizer->getLineNumberMovements();
 
                 foreach ($lineSwaps as $currentLine => $newLine) {
                     $fix = new SwapLineFix($currentLine, $newLine, $errorMsg);
+
                     $this->result->fix($fix);
                 }
             } else {
@@ -313,22 +316,33 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
             }
         }
 
+        $unusedFixes = [];
+
         foreach ($this->aliases as $use) {
             if ($use->getUseCount() == 0) {
                 $errorMsg = "Use '{$use->getName()}' is not being used";
-                if ($this->result->getConfig()->autoFix) {
+                if ($autoFix) {
                     $line = $use->getNode()->getLine();
 
                     // if organization occurred the line may have moved
-                    if (isset($lineNumberMapping[$line])) {
-                        $line = $lineNumberMapping[$line];
+                    if (isset($lineNumberMovements[$line])) {
+                        $line = $lineNumberMovements[$line];
                     }
 
                     $fix = new RemoveLineFix($line, $errorMsg);
-                    $this->result->fix($fix);
+                    $unusedFixes[$line] = $fix;
                 } else {
                     $this->result->error(ErrorType::UNUSED_USE, null, $errorMsg);
                 }
+            }
+        }
+
+        if ($autoFix) {
+            // removing must be done in reverse order
+            krsort($unusedFixes);
+
+            foreach ($unusedFixes as $fix) {
+                $this->result->fix($fix);
             }
         }
     }
