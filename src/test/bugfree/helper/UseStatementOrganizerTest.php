@@ -3,6 +3,7 @@
 namespace bugfree\helper;
 
 
+use BadMethodCallException;
 use Phake;
 
 class UseStatementOrganizerTest extends \PHPUnit_Framework_TestCase

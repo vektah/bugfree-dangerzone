@@ -6,7 +6,6 @@ namespace bugfree\cli;
 use bugfree\AutoloaderResolver;
 use bugfree\Bugfree;
 use bugfree\config\Config;
-use bugfree\fix\Fix;
 use bugfree\output\JunitOutputFormatter;
 use bugfree\output\OutputFormatter;
 use bugfree\output\OutputMuxer;

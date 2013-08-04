@@ -40,6 +40,10 @@ class Docblock
                 $this->parseAnnotation($lexer);
             }
 
+            if ($token->getValue() == '<') {
+                $this->ignoreUntil($lexer, '>');
+            }
+
             $lexer->moveNext();
         }
     }
@@ -122,6 +126,27 @@ class Docblock
                 if (preg_match('/(?P<type>.*)::(.*)/', $token->getValue(), $matches)) {
                     $this->types[] = ['type' => $matches['type'], 'line' => $token->getLine()];
                 }
+            }
+
+            $lexer->moveNext();
+        }
+    }
+
+    /**
+     * Parses a second of docblock between brackets
+     *
+     * @param DocLexer $lexer
+     * @param int $endTokenType
+     */
+    public function ignoreUntil(DocLexer $lexer, $endTokenType)
+    {
+        $lexer->moveNext();
+
+        while ($token = $lexer->lookahead) {
+            $token = new DoctrineAnnotationToken($token, $this->rawDocblock);
+
+            if ($token->getType() == $endTokenType) {
+                return;
             }
 
             $lexer->moveNext();

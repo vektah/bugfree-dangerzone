@@ -81,6 +81,22 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
         $this->assertArrayValuesContains($result->getErrors(), "Alias 'asdf' is already in use on line 2");
     }
 
+    public function testEmailsAreIgnored()
+    {
+        Phake::verifyNoFurtherInteraction($this->resolver);
+        $src = '<?php namespace bar;
+            /**
+             * @author foo <bar@baz.com>
+             */
+            function foo() {}
+        ';
+        $result = $this->bugfree->parse('test', $src, $this->resolver);
+
+        $this->assertEquals([], $result->getErrors());
+        $this->assertEquals([], $result->getWarnings());
+
+    }
+
     public function testMultipleNamespaces()
     {
         Phake::when($this->resolver)->isValid('\foo\Foo')->thenReturn(false);
