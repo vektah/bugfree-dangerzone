@@ -31,9 +31,9 @@ class OutputMuxer implements OutputFormatter
         $this->each('testPassed', [$testNumber, $filename]);
     }
 
-    public function testFailed($testNumber, $filename, array $errors, array $warnings)
+    public function testFailed($testNumber, $filename, array $errors)
     {
-        $this->each('testFailed', [$testNumber, $filename, $errors, $warnings]);
+        $this->each('testFailed', [$testNumber, $filename, $errors]);
     }
 
     public function end($status)

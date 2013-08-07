@@ -5,7 +5,7 @@ namespace bugfree\output;
 
 use bugfree\ErrorType;
 
-class JunitOutputFormatter implements OutputFormatter
+class CheckStyleOutputFormatter implements OutputFormatter
 {
     private $resultXml = '';
     private $filename;
@@ -18,33 +18,31 @@ class JunitOutputFormatter implements OutputFormatter
     public function begin($expectedTests)
     {
         $this->resultXml .= "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-        $this->resultXml .= "<testsuites>\n";
-        $this->resultXml .= "\t<testsuite testcase=\"Bugfree Dangerzone type checks\" tests=\"$expectedTests\">\n";
+        $this->resultXml .= "<checkstyle version=\"4.3\">\n";
     }
 
     public function testPassed($testNumber, $filename)
     {
-        $this->resultXml .= "\t\t<testcase name=\"$filename\" />\n";
+        $this->resultXml .= "\t<file name=\"$filename\" />\n";
     }
 
     public function testFailed($testNumber, $filename, array $errors)
     {
-        $this->resultXml .= "\t\t<testcase name=\"$filename\">\n";
+        $this->resultXml .= "\t<file name=\"$filename\">\n";
         foreach ($errors as $error) {
             $type = 'Error';
             if ($error->severity == ErrorType::WARNING) {
                 $type = 'Warning';
             }
 
-            $this->resultXml .= "\t\t\t<failure type=\"$type\">{$error->getFormatted()}</failure>\n";
+            $this->resultXml .= "\t\t<error line=\"{$error->line}\" column=\"1\" severity=\"$type\" message=\"{$error->message}\" />\n";
         }
-        $this->resultXml .= "\t\t</testcase>\n";
+        $this->resultXml .= "\t</file>\n";
     }
 
     public function end($status)
     {
-        $this->resultXml .= "\t</testsuite>\n";
-        $this->resultXml .= "</testsuites>\n";
+        $this->resultXml .= "</checkstyle>\n";
         file_put_contents($this->filename, $this->resultXml);
     }
 }

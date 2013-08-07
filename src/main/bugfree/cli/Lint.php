@@ -2,10 +2,12 @@
 
 namespace bugfree\cli;
 
+
 use Exception;
 use bugfree\AutoloaderResolver;
 use bugfree\Bugfree;
 use bugfree\config\Config;
+use bugfree\output\CheckStyleOutputFormatter;
 use bugfree\output\JunitOutputFormatter;
 use bugfree\output\OutputFormatter;
 use bugfree\output\OutputMuxer;
@@ -63,6 +65,11 @@ class Lint extends Command
                 InputOption::VALUE_REQUIRED,
                 'Output junit xml to the file provided.'
             )->addOption(
+                'checkstyleXml',
+                'X',
+                InputOption::VALUE_REQUIRED,
+                'Output checkstyle xml to the file provided.'
+            )->addOption(
                 'config',
                 'c',
                 InputOption::VALUE_OPTIONAL,
@@ -73,10 +80,11 @@ class Lint extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $formatter = new OutputMuxer();
         if ($input->getOption('tap')) {
-            $formatter = new TapFormatter($output);
+            $formatter->add(new TapFormatter($output));
         } else {
-            $formatter = new XUnitFormatter($output);
+            $formatter->add(new XUnitFormatter($output));
         }
 
         if (is_string($bootstrap = $input->getOption('bootstrap'))) {
@@ -105,11 +113,11 @@ class Lint extends Command
         }
 
         if (is_string($xmlFilename = $input->getOption('junitXml'))) {
-            $stdout = $formatter;
+            $formatter->add(new JunitOutputFormatter($xmlFilename));
+        }
 
-            $formatter = new OutputMuxer();
-            $formatter->add($stdout)
-                ->add(new JunitOutputFormatter($xmlFilename));
+        if (is_string($xmlFilename = $input->getOption('checkstyleXml'))) {
+            $formatter->add(new CheckStyleOutputFormatter($xmlFilename));
         }
 
         $files = $input->getArgument('files');
@@ -177,14 +185,8 @@ class Lint extends Command
                 $status = self::ERROR;
             }
 
-            if (count($result->getWarnings()) > 0) {
-                if ($status < self::WARNING) {
-                    $status = self::WARNING;
-                }
-            }
-
-            if (count($result->getErrors()) > 0 || count($result->getWarnings()) > 0) {
-                $formatter->testFailed($testNumber, $file, $result->getErrors(), $result->getWarnings());
+            if (count($result->getErrors()) > 0) {
+                $formatter->testFailed($testNumber, $file, $result->getErrors());
             } else {
                 $formatter->testPassed($testNumber, $file);
             }

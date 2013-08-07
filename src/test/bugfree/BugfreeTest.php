@@ -24,11 +24,11 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
         $this->bugfree = new Bugfree($this->resolver, $config);
     }
 
-    private function assertArrayValuesContains(array $array, $string)
+    private function assertErrorWithMessage(array $array, $string)
     {
         $found = false;
         foreach ($array as $value) {
-            if (strstr($value, $string) !== false) {
+            if (strstr($value->getFormatted(), $string) !== false) {
                 $found = true;
             }
         }
@@ -42,16 +42,16 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     {
         $result = $this->bugfree->parse('test', '<?php use asdf,hjkl;', $this->resolver);
         // Make sure no namespace raises an error
-        $this->assertArrayValuesContains($result->getErrors(), 'Every source file should have a namespace');
+        $this->assertErrorWithMessage($result->getErrors(), 'Every source file should have a namespace');
 
         // But also make sure parsing continues!
-        $this->assertArrayValuesContains($result->getWarnings(), 'Multiple uses in one statement is discouraged');
+        $this->assertErrorWithMessage($result->getErrors(), 'Multiple uses in one statement is discouraged');
     }
 
     public function testMultiPartUseWarning()
     {
         $result = $this->bugfree->parse('test', '<?php namespace foo; use asdf, hjkl;', $this->resolver);
-        $this->assertArrayValuesContains($result->getWarnings(), 'Multiple uses in one statement is discouraged');
+        $this->assertErrorWithMessage($result->getErrors(), 'Multiple uses in one statement is discouraged');
     }
 
     public function testUnresolvingUseStatement()
@@ -60,14 +60,14 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
 
         $result = $this->bugfree->parse('test', '<?php namespace foo; use asdf, hjkl;', $this->resolver);
 
-        $this->assertArrayValuesContains($result->getErrors(), "Use '\\asdf' could not be resolved");
+        $this->assertErrorWithMessage($result->getErrors(), "Use '\\asdf' could not be resolved");
     }
 
     public function testUnusedUse()
     {
         $result = $this->bugfree->parse('test', '<?php namespace foo; use asdf;', $this->resolver);
 
-        $this->assertArrayValuesContains($result->getWarnings(), "Use 'asdf' is not being used");
+        $this->assertErrorWithMessage($result->getErrors(), "Use 'asdf' is not being used");
     }
 
     public function testDuplicateAlias()
@@ -78,7 +78,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
         ';
         $result = $this->bugfree->parse('test', $src, $this->resolver);
 
-        $this->assertArrayValuesContains($result->getErrors(), "Alias 'asdf' is already in use on line 2");
+        $this->assertErrorWithMessage($result->getErrors(), "Alias 'asdf' is already in use on line 2");
     }
 
     public function testEmailsAreIgnored()
@@ -93,7 +93,6 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
         $result = $this->bugfree->parse('test', $src, $this->resolver);
 
         $this->assertEquals([], $result->getErrors());
-        $this->assertEquals([], $result->getWarnings());
 
     }
 
@@ -114,8 +113,8 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
 
         $result = $this->bugfree->parse('test', $src, $this->resolver);
 
-        $this->assertArrayValuesContains($result->getErrors(), "Type '\\foo\\Foo' could not be resolved");
-        $this->assertArrayValuesContains($result->getErrors(), "Type '\\baz\\Baz' could not be resolved");
+        $this->assertErrorWithMessage($result->getErrors(), "Type '\\foo\\Foo' could not be resolved");
+        $this->assertErrorWithMessage($result->getErrors(), "Type '\\baz\\Baz' could not be resolved");
     }
 
     public function useProvider()
@@ -125,61 +124,60 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
                 'invalid'   => ['\testns\DoesNotExist'],
                 'type'      => 'DoesNotExist',
                 'errors'    => ["Type '\\testns\\DoesNotExist' could not be resolved"],
-                'warnings'  => [],
             ]],
             [[
                 'invalid'   => [],
                 'type'      => 'DoesNotExist',
                 'errors'    => [],
-                'warnings'  => [],
             ]],
             [[
                 'invalid'   => ['\testns\DoesNotExist'],
                 'type'      => '\testns\DoesNotExist',
-                'errors'    => ["Type '\\testns\\DoesNotExist' could not be resolved"],
-                'warnings'  => ['Use of qualified type names is discouraged.'],
+                'errors'    => [
+                    "Type '\\testns\\DoesNotExist' could not be resolved",
+                    'Use of qualified type names is discouraged.'
+                ],
             ]],
             [[
                 'invalid'   => [],
                 'type'      => '\testns\DoesNotExist',
-                'errors'    => [],
-                'warnings'  => ['Use of qualified type names is discouraged.'],
+                'errors'    => ['Use of qualified type names is discouraged.'],
             ]],
             [[
                 'invalid'   => ['\foo\bar\baz\DoesNotExist'],
                 'type'      => 'baz\DoesNotExist',
-                'errors'    => ["Type '\\foo\\bar\\baz\\DoesNotExist' could not be resolved"],
-                'warnings'  => ['Use of qualified type names is discouraged.'],
+                'errors'    => [
+                    "Type '\\foo\\bar\\baz\\DoesNotExist' could not be resolved",
+                    'Use of qualified type names is discouraged.'
+                ],
             ]],
             [[
                 'invalid'   => [],
                 'type'      => 'baz\DoesNotExist',
-                'errors'    => [],
-                'warnings'  => ['Use of qualified type names is discouraged.'],
+                'errors'    => ['Use of qualified type names is discouraged.'],
             ]],
             [[
                 'invalid'   => ['\testns\boo\DoesNotExist'],
                 'type'      => 'boo\DoesNotExist',
-                'errors'    => ["Type '\\testns\\boo\\DoesNotExist' could not be resolved"],
-                'warnings'  => ['Use of qualified type names is discouraged.'],
+                'errors'    => [
+                    "Type '\\testns\\boo\\DoesNotExist' could not be resolved",
+                    'Use of qualified type names is discouraged.'
+                ],
             ]],
             [[
                 'invalid'   => [],
                 'type'      => 'Thing',
                 'errors'    => [],
-                'warnings'  => [],
             ]],
             [[
                 'invalid'   => ['\Thing'],
                 'type'      => '\Thing',
                 'errors'    => ["Type '\\Thing' could not be resolved"],
-                'warnings'  => [],
             ]],
             [[
                 'invalid'   => [],
                 'type'      => '\Thing',
                 'errors'    => [],
-                'warnings'  => [],
             ]],
         ];
     }
@@ -196,21 +194,12 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
         $result = $this->bugfree->parse('test', $src, $this->resolver);
 
         foreach ($options['errors'] as $error) {
-            $this->assertArrayValuesContains($result->getErrors(), $error);
+            $this->assertErrorWithMessage($result->getErrors(), $error);
         }
         $this->assertEquals(
             count($options['errors']),
             count($result->getErrors()),
             print_r($result->getErrors(), true)
-        );
-
-        foreach ($options['warnings'] as $warning) {
-            $this->assertArrayValuesContains($result->getWarnings(), $warning);
-        }
-        $this->assertEquals(
-            count($options['warnings']),
-            count($result->getWarnings()),
-            print_r($result->getWarnings(), true)
         );
 
         foreach ($options['invalid'] as $resolveCall) {
@@ -576,7 +565,6 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
 
         $result = $this->bugfree->parse('test', $src, $this->resolver);
 
-        $this->assertEquals(0, count($result->getWarnings()), print_r($result->getWarnings(), true));
         $this->assertEquals(0, count($result->getErrors()), print_r($result->getErrors(), true));
     }
 
@@ -594,7 +582,6 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
 
         $result = $this->bugfree->parse('test', $src, $this->resolver);
 
-        $this->assertEquals(0, count($result->getWarnings()), print_r($result->getWarnings(), true));
         $this->assertEquals(0, count($result->getErrors()), print_r($result->getErrors(), true));
     }
 }

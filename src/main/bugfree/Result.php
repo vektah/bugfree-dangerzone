@@ -14,9 +14,6 @@ class Result
     /** @var string[] */
     private $errors = [];
 
-    /** @var string[] */
-    private $warnings = [];
-
     /** @var Fix[] */
     private $fixes = [];
 
@@ -49,16 +46,16 @@ class Result
             return;
         }
 
-        $locator = $this->name;
+        $error = new Error();
+        $error->filename = $this->name;
+        $error->message = $message;
+        $error->severity = $level;
+
         if ($line) {
-            $locator .= ":$line";
+            $error->line = $line;
         }
 
-        if ($level == ErrorType::ERROR) {
-            $this->errors[] = "$locator $message";
-        } elseif ($level == ErrorType::WARNING) {
-            $this->warnings[] = "$locator $message";
-        }
+        $this->errors[] = $error;
     }
 
     public function fix(Fix $fix)
@@ -74,13 +71,6 @@ class Result
         return $this->errors;
     }
 
-    /**
-     * @return string[] all of the warnings in this file.
-     */
-    public function getWarnings()
-    {
-        return $this->warnings;
-    }
 
     /**
      * @return Fix[] all of the suggested fixes for this file

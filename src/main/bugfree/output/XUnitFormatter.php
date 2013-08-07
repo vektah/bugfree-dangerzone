@@ -4,13 +4,17 @@ namespace bugfree\output;
 
 
 use bugfree\Bugfree;
+use bugfree\Error;
+use bugfree\ErrorType;
 use bugfree\cli\Lint;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class XUnitFormatter implements OutputFormatter
 {
     private $output;
+    /** @var Error[] */
     private $errors = [];
+    /** @var Error[] */
     private $warnings = [];
     private $startTime;
     private $line_length = 0;
@@ -39,27 +43,33 @@ class XUnitFormatter implements OutputFormatter
         $this->checkLineLength($testNumber);
     }
 
-    public function testFailed($testNumber, $filename, array $errors, array $warnings)
+    public function testFailed($testNumber, $filename, array $errors)
     {
         $this->tests++;
         $this->line_length++;
-        if (count($errors) > 0) {
+
+        $error_count = 0;
+        $warning_count = 0;
+
+        foreach ($errors as $error) {
+            if ($error->severity == ErrorType::ERROR) {
+                $error_count++;
+                $this->errors[] = $error;
+            } elseif ($error->severity == ErrorType::WARNING) {
+                $warning_count++;
+                $this->warnings[] = $error;
+            }
+        }
+
+        if ($error_count > 0) {
             $this->output->write("F");
-        } elseif (count($warnings) > 0) {
+        } elseif ($warning_count > 0) {
             $this->output->write("W");
         } else {
             $this->output->write("?");
         }
 
         $this->checkLineLength($testNumber);
-
-        foreach ($errors as $error) {
-            $this->errors[] = $error;
-        }
-
-        foreach ($warnings as $warning) {
-            $this->warnings[] = $warning;
-        }
     }
 
     private function checkLineLength($testNumber)
@@ -90,7 +100,7 @@ class XUnitFormatter implements OutputFormatter
 
             foreach ($this->errors as $errorNumber => $error) {
                 $errorNumber++;
-                $this->output->writeln("{$errorNumber}) {$error}");
+                $this->output->writeln("{$errorNumber}) {$error->getFormatted()}");
             }
 
             $this->output->writeln('');
@@ -103,7 +113,7 @@ class XUnitFormatter implements OutputFormatter
 
             foreach ($this->warnings as $warningNumber => $warning) {
                 $warningNumber++;
-                $this->output->writeln("{$warningNumber}) {$warning}");
+                $this->output->writeln("{$warningNumber}) {$warning->getFormatted()}");
             }
             $this->output->writeln('');
         }

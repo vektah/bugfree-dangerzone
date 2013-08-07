@@ -3,6 +3,7 @@
 namespace bugfree\output;
 
 
+use bugfree\Error;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class TapFormatter implements OutputFormatter
@@ -26,9 +27,10 @@ class TapFormatter implements OutputFormatter
         $this->output->writeln("ok $testNumber - $filename");
     }
 
-    public function testFailed($testNumber, $filename, array $errors, array $warnings)
+    public function testFailed($testNumber, $filename, array $errors)
     {
-        $message = join("\n", array_merge($errors, $warnings));
+        $message = join("\n", array_map([Error::_CLASS, 'formatter'], $errors));
+
         $this->output->writeln("not ok $testNumber - $filename");
 
         $message = preg_replace('/\r|\r\n|\n/', "\n  ", $message);
