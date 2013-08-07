@@ -20,7 +20,7 @@ class DoctrineAnnotationToken
         property|dataProvider|throws|inheritdoc|expectedException|expectedExceptionMessage|api
     $/ix';
 
-    private static $nonDoctrineTagsThatSpecifyType = '/^var|param|return|method|property|expectedException$/i';
+    private static $nonDoctrineTagsThatSpecifyType = '/^var|param|return|method|property|expectedException|throws$/i';
 
     private static $typeNames = [
         DocLexer::T_NONE => 'NONE',
