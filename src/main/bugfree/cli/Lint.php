@@ -2,7 +2,7 @@
 
 namespace bugfree\cli;
 
-
+use Exception;
 use bugfree\AutoloaderResolver;
 use bugfree\Bugfree;
 use bugfree\config\Config;
@@ -28,14 +28,20 @@ class Lint extends Command
         $this->setName('lint')
             ->setDescription('Runs the linter over a given directory')
             ->addArgument(
-                'dir',
-                InputArgument::REQUIRED,
-                'Path to the base source directory'
+                'files',
+                InputArgument::IS_ARRAY,
+                'Directory or list of files to scan'
             )->addOption(
                 'bootstrap',
                 'b',
-                InputOption::VALUE_OPTIONAL,
+                InputOption::VALUE_REQUIRED,
                 "Run this file before starting analysis, Can be used on your projects vendor/autoload.php directly"
+            )->addOption(
+                'basedir',
+                'd',
+                InputOption::VALUE_REQUIRED,
+                "The start of the namespace path, used to validate partial uses.",
+                'src'
             )->addOption(
                 'tap',
                 null,
@@ -67,16 +73,13 @@ class Lint extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        if ($input->hasOption('tap') && $input->getOption('tap')) {
+        if ($input->getOption('tap')) {
             $formatter = new TapFormatter($output);
         } else {
             $formatter = new XUnitFormatter($output);
         }
 
-        if ($input->hasOption('bootstrap') && is_string($input->getOption('bootstrap'))) {
-            $bootstrap = $input->getOption('bootstrap');
-
-
+        if (is_string($bootstrap = $input->getOption('bootstrap'))) {
             if (!file_exists(stream_resolve_include_path($bootstrap))) {
                 $output->writeln("Bootstrap '$bootstrap' does not exist!");
             } else {
@@ -86,26 +89,22 @@ class Lint extends Command
 
         $config = new Config();
 
-        if ($input->hasOption('config') && is_string($input->getOption('config'))) {
-            $configFilename = $input->getOption('config');
-
-
+        if (is_string($configFilename = $input->getOption('config'))) {
             if (file_exists(stream_resolve_include_path($configFilename))) {
                 $output->writeln("Config loaded from '$configFilename'\n");
                 $config = Config::load($configFilename);
+            } else {
+                if ($input->getOption('config') != 'bugfree.json') {
+                    throw new Exception("Unable to find config file '$configFilename'");
+                }
             }
         }
 
-        if ($input->hasOption('autoFix') && $input->getOption('autoFix')) {
+        if ($input->getOption('autoFix')) {
             $config->autoFix = true;
         }
 
-        $exclude = null;
-        if ($input->hasOption('exclude') && is_string($input->getOption('exclude'))) {
-            $exclude = $input->getOption('exclude');
-        }
-
-        if ($input->hasOption('junitXml') && is_string($xmlFilename = $input->getOption('junitXml'))) {
+        if (is_string($xmlFilename = $input->getOption('junitXml'))) {
             $stdout = $formatter;
 
             $formatter = new OutputMuxer();
@@ -113,9 +112,31 @@ class Lint extends Command
                 ->add(new JunitOutputFormatter($xmlFilename));
         }
 
-        $basedir = $input->getArgument('dir');
-        if (is_dir($basedir)) {
-            $directory = new \RecursiveDirectoryIterator($basedir);
+        $files = $input->getArgument('files');
+        $exclude = $input->getOption('exclude');
+
+        $fileList = [];
+        foreach ($files as $file) {
+            $fileList = array_merge($fileList, $this->scan($file, $exclude));
+        }
+
+        $basedir = realpath($input->getOption('basedir'));
+
+        return $this->lintFiles($basedir, $config, $formatter, $fileList);
+    }
+
+    /**
+     * Scans a file, expanding directories as needed
+     *
+     * @param string $file the name of the file to scan
+     * @param string $exclude regex of files to exclude
+     *
+     * @return string[] a list of filenames
+     */
+    private function scan($file, $exclude)
+    {
+        if (is_dir($file)) {
+            $directory = new \RecursiveDirectoryIterator($file);
             $iterator = new \RecursiveIteratorIterator($directory);
             $phpFiles = new \RegexIterator($iterator, '/^.+\.php$/i', \RecursiveRegexIterator::GET_MATCH);
 
@@ -128,10 +149,10 @@ class Lint extends Command
                 $files[] = $filename;
             }
         } else {
-            $files = [$basedir];
+            $files = [$file];
         }
 
-        return $this->lintFiles($basedir, $config, $formatter, $files);
+        return $files;
     }
 
     private function lintFiles($basedir, Config $config, OutputFormatter $formatter, array $files)
