@@ -19,11 +19,12 @@ foreach ($files as $file) {
 }
 
 
+use bugfree\Bugfree;
 use bugfree\cli\GenerateConfig;
 use bugfree\cli\Lint;
 use Symfony\Component\Console\Application;
 
-$application = new Application();
+$application = new Application('Bugfree Dangerzone', Bugfree::VERSION);
 $application->add(new Lint());
 $application->add(new GenerateConfig());
 $application->run();

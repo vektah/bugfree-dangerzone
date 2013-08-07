@@ -36,7 +36,7 @@ class XUnitFormatter implements OutputFormatter
         $this->tests++;
         $this->line_length++;
         $this->output->write(".");
-        $this->check_line_length($testNumber);
+        $this->checkLineLength($testNumber);
     }
 
     public function testFailed($testNumber, $filename, array $errors, array $warnings)
@@ -51,7 +51,7 @@ class XUnitFormatter implements OutputFormatter
             $this->output->write("?");
         }
 
-        $this->check_line_length($testNumber);
+        $this->checkLineLength($testNumber);
 
         foreach ($errors as $error) {
             $this->errors[] = $error;
@@ -62,7 +62,8 @@ class XUnitFormatter implements OutputFormatter
         }
     }
 
-    private function check_line_length($testNumber) {
+    private function checkLineLength($testNumber)
+    {
         if ($this->line_length >= 63) {
             $this->line_length = 0;
             $progress = $testNumber / $this->expectedTests * 100;
