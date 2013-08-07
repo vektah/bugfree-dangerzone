@@ -33,6 +33,16 @@ If your project has its own autoloader you can use it instead:
 ./vendor/bin/bugfree lint --bootstrap yourautoloader.php src
 ```
 
+XML Output
+----------
+For use in CI tools like Jenkins some pretty test count output is just not good enough!
+
+To generate machine readable output:
+```
+./vendor/bin/bugfree lint src --junitXml junit_results.xml --checkstyleXml checkstyle_results.xml
+```
+
+
 
 Configuration
 -------------
