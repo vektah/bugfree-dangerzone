@@ -136,16 +136,16 @@ class Docblock
      * Parses a second of docblock between brackets
      *
      * @param DocLexer $lexer
-     * @param int $endTokenType
+     * @param int $endTokenValue
      */
-    public function ignoreUntil(DocLexer $lexer, $endTokenType)
+    public function ignoreUntil(DocLexer $lexer, $endTokenValue)
     {
         $lexer->moveNext();
 
         while ($token = $lexer->lookahead) {
             $token = new DoctrineAnnotationToken($token, $this->rawDocblock);
 
-            if ($token->getType() == $endTokenType) {
+            if ($token->getValue() == $endTokenValue) {
                 return;
             }
 

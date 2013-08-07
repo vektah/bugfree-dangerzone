@@ -90,6 +90,19 @@ class DocblockTest extends \PHPUnit_Framework_TestCase
                     ['type' => 'SomeClass2','line' => 4],
                     ['type' => 'SomeClass4','line' => 4],
                 ]
+            ],
+            [
+                '**
+                 *(PHP 5 &gt;= 5.0.0)<br/>
+                 * Retrieve an external iterator
+                 *
+                 * @link http://php.net/manual/en/iteratoraggregate.getiterator.php
+                 * @return Traversable An instance of an object implementing <b>Iterator</b> or
+                 * <b>Traversable</b>
+                 */',
+                [
+                    ['type' => 'Traversable', 'line' => 5]
+                ]
             ]
         ];
     }
