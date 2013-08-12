@@ -1,7 +1,7 @@
 bugfree-dangerzone [![Build Status](https://travis-ci.org/Vektah/bugfree-dangerzone.png?branch=master)](https://travis-ci.org/Vektah/bugfree-dangerzone)
 ==================
 
-Bugfree Dnagerzone is a PHP namespace validator written in PHP. It uses your autoloader to verify that:
+Bugfree Dangerzone is a PHP namespace validator written in PHP. It uses your autoloader to verify that:
  - all of the use statements are valid
  - that all exception catch blocks and type hints have a valid type
  - all doc block types are valid (eg @param Foo $foo)
@@ -19,7 +19,11 @@ Add "vektah/bugfree-dangerzone" to your projects composer.json, it should look s
     },
 ```
 
-composer.phar update to update your dependencies
+Then of course: 
+```
+composer.phar update
+```
+to update your dependencies
 
 
 then run 
