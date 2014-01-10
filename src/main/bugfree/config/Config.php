@@ -2,8 +2,7 @@
 
 namespace bugfree\config;
 
-
-use bugfree\helper\Json;
+use vektah\common\json\Json;
 
 class Config
 {

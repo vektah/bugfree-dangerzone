@@ -14,9 +14,10 @@
     ],
 
     "require": {
-        "nikic/php-parser": "0.9.3",
+        "nikic/php-parser": "0.9.*",
         "symfony/console": "*",
-        "doctrine/annotations": "*"
+        "doctrine/annotations": "*",
+        "vektah/common": "*"
     },
 
     "require-dev": {
