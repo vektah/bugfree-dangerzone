@@ -3,6 +3,7 @@
 namespace bugfree\cli;
 
 
+use bugfree\Error;
 use Exception;
 use bugfree\AutoloaderResolver;
 use bugfree\Bugfree;
@@ -18,6 +19,8 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use vektah\common\json\InvalidJsonException;
+use vektah\common\json\Json;
 use vektah\common\System;
 
 class Lint extends Command
@@ -111,12 +114,11 @@ class Lint extends Command
             }
         }
 
-        $config = new Config();
+        $options = [];
 
         if (is_string($configFilename = $input->getOption('config'))) {
             if (file_exists(stream_resolve_include_path($configFilename))) {
-                $output->writeln("Config loaded from '$configFilename'\n");
-                $config = Config::load($configFilename);
+                $options['config'] = $configFilename;
             } else {
                 if ($input->getOption('config') != 'bugfree.json') {
                     throw new Exception("Unable to find config file '$configFilename'");
@@ -125,7 +127,7 @@ class Lint extends Command
         }
 
         if ($input->getOption('autoFix')) {
-            $config->autoFix = true;
+            $options['autofix'] = true;
         }
 
         if (is_string($xmlFilename = $input->getOption('junitXml'))) {
@@ -144,9 +146,15 @@ class Lint extends Command
             $fileList = array_merge($fileList, $this->scan($file, $exclude));
         }
 
-        $basedir = realpath($input->getOption('basedir'));
+        $options['basedir'] = realpath($input->getOption('basedir'));
 
-        return $this->lintFiles($basedir, $config, $formatter, $fileList);
+        $workers = [];
+
+        for ($i = 0; $i < $input->getOption('workers'); $i++) {
+            $workers[] = new WorkerClient($options);
+        }
+
+        return $this->lintFiles($formatter, $fileList);
     }
 
     /**
@@ -179,16 +187,60 @@ class Lint extends Command
         return $files;
     }
 
-    private function lintFiles($basedir, Config $config, OutputFormatter $formatter, array $files)
+    /**
+     * @param WorkerClient[] $workers
+     * @param OutputFormatter $formatter
+     * @param array $files
+     * @return int
+     */
+    private function lintFiles(array $workers, OutputFormatter $formatter, array $files)
     {
-        $bugfree = new Bugfree(new AutoloaderResolver($basedir), $config);
-
         $count = count($files);
         $formatter->begin($count);
 
-        $status = self::SUCCESS;
+        $errors = self::SUCCESS;
+        $testNumber = 0;
+
+        while (true) {
+            foreach ($workers as $worker) {
+                if (!$worker->isBusy()) {
+                    if (!empty($files)) {
+                        $worker->sendTask(array_pop($files));
+                    }
+
+                    if ($result = $worker->getResult()) {
+                        $testNumber++;
+                        try {
+                            $decoded = Json::decode($result);
+
+                            foreach ($decoded as $file => $errors) {
+                                if (is_array($errors)) {
+                                    $errors = self::ERROR;
+                                    $converted_errors = [];
+
+                                    foreach ($errors as $error) {
+                                        $converted_errors[] = new Error();
+                                    }
+
+                                    $formatter->testFailed($testNumber, $file, $errors);
+                                } else {
+                                    $formatter->testPassed($testNumber, $file);
+                                }
+                            }
+
+                        } catch (InvalidJsonException $e) {
+                            $formatter->testFailed($testNumber, $worker->getCurrentFile(), ['Communication error with worker:' . $result]);
+                            $worker->stop();
+                            $worker->start();
+                        }
+                    }
+                }
+            }
+        }
+
         foreach ($files as $index => $file) {
             $testNumber = $index+1;
+
             try {
                 $rawFileContents = file_get_contents($file);
                 $result = $bugfree->parse($file, $rawFileContents);
@@ -198,7 +250,7 @@ class Lint extends Command
             }
 
             if (count($result->getErrors()) > 0) {
-                $status = self::ERROR;
+                $errors = self::ERROR;
             }
 
             if (count($result->getErrors()) > 0) {
@@ -219,8 +271,8 @@ class Lint extends Command
             }
         }
 
-        $formatter->end($status);
+        $formatter->end($errors);
 
-        return $status;
+        return $errors;
     }
 }
