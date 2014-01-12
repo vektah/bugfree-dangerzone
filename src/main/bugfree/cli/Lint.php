@@ -18,6 +18,7 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use vektah\common\System;
 
 class Lint extends Command
 {
@@ -27,55 +28,70 @@ class Lint extends Command
 
     protected function configure()
     {
-        $this->setName('lint')
-            ->setDescription('Runs the linter over a given directory')
-            ->addArgument(
-                'files',
-                InputArgument::IS_ARRAY,
-                'Directory or list of files to scan'
-            )->addOption(
-                'bootstrap',
-                'b',
-                InputOption::VALUE_REQUIRED,
-                "Run this file before starting analysis, Can be used on your projects vendor/autoload.php directly"
-            )->addOption(
-                'basedir',
-                'd',
-                InputOption::VALUE_REQUIRED,
-                "The start of the namespace path, used to validate partial uses.",
-                'src'
-            )->addOption(
-                'tap',
-                null,
-                InputOption::VALUE_NONE,
-                "Output in TAP format"
-            )->addOption(
-                'exclude',
-                null,
-                InputOption::VALUE_REQUIRED,
-                "Do not attempt to check file names that match this regex."
-            )->addOption(
-                'autoFix',
-                'a',
-                InputOption::VALUE_NONE,
-                'Automatically fix common problems.'
-            )->addOption(
-                'junitXml',
-                'x',
-                InputOption::VALUE_REQUIRED,
-                'Output junit xml to the file provided.'
-            )->addOption(
-                'checkstyleXml',
-                'X',
-                InputOption::VALUE_REQUIRED,
-                'Output checkstyle xml to the file provided.'
-            )->addOption(
-                'config',
-                'c',
-                InputOption::VALUE_OPTIONAL,
-                "The config file to generate/update",
-                'bugfree.json'
-            );
+        $this->setName('lint');
+        $this->setDescription('Runs the linter over a given directory');
+        $this->addArgument(
+            'files',
+            InputArgument::IS_ARRAY,
+            'Directory or list of files to scan'
+        );
+        $this->addOption(
+            'bootstrap',
+            'b',
+            InputOption::VALUE_REQUIRED,
+            "Run this file before starting analysis, Can be used on your projects vendor/autoload.php directly"
+        );
+        $this->addOption(
+            'workers',
+            'w',
+            InputOption::VALUE_REQUIRED,
+            "The number of concurrent workers to run",
+            System::cpuCount() + 1
+        );
+        $this->addOption(
+            'basedir',
+            'd',
+            InputOption::VALUE_REQUIRED,
+            "The start of the namespace path, used to validate partial uses.",
+            'src'
+        );
+        $this->addOption(
+            'tap',
+            null,
+            InputOption::VALUE_NONE,
+            "Output in TAP format"
+        );
+        $this->addOption(
+            'exclude',
+            null,
+            InputOption::VALUE_REQUIRED,
+            "Do not attempt to check file names that match this regex."
+        );
+        $this->addOption(
+            'autoFix',
+            'a',
+            InputOption::VALUE_NONE,
+            'Automatically fix common problems.'
+        );
+        $this->addOption(
+            'junitXml',
+            'x',
+            InputOption::VALUE_REQUIRED,
+            'Output junit xml to the file provided.'
+        );
+        $this->addOption(
+            'checkstyleXml',
+            'X',
+            InputOption::VALUE_REQUIRED,
+            'Output checkstyle xml to the file provided.'
+        );
+        $this->addOption(
+            'config',
+            'c',
+            InputOption::VALUE_OPTIONAL,
+            "The config file to generate/update",
+            'bugfree.json'
+        );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)

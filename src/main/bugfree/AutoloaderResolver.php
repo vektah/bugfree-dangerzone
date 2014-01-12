@@ -15,7 +15,7 @@ class AutoloaderResolver implements Resolver
         $this->basedir = $basedir;
     }
 
-    private function class_exists_case_sensitive($class)
+    private function classExistsCaseSensitive($class)
     {
         if ($class[0] == '\\') {
             $class = substr($class, 1);
@@ -32,7 +32,7 @@ class AutoloaderResolver implements Resolver
      */
     public function isValid($name)
     {
-        if ($this->class_exists_case_sensitive($name) || interface_exists($name) || trait_exists($name)) {
+        if ($this->classExistsCaseSensitive($name) || interface_exists($name) || trait_exists($name)) {
             return true;
         }
 

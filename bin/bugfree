@@ -22,9 +22,10 @@ foreach ($files as $file) {
 use bugfree\Bugfree;
 use bugfree\cli\GenerateConfig;
 use bugfree\cli\Lint;
-use Symfony\Component\Console\Application;
+use bugfree\cli\Worker;use Symfony\Component\Console\Application;
 
 $application = new Application('Bugfree Dangerzone', Bugfree::VERSION);
 $application->add(new Lint());
+$application->add(new Worker());
 $application->add(new GenerateConfig());
 $application->run();

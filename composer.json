@@ -16,13 +16,16 @@
     "require": {
         "nikic/php-parser": "0.9.*",
         "symfony/console": "*",
+        "symfony/process": "*",
         "doctrine/annotations": "*",
         "vektah/common": "*"
     },
 
     "require-dev": {
         "phake/phake": "v2.0.0-alpha2",
-        "phpunit/phpunit": "3.7.21"
+        "phpunit/phpunit": "3.7.21",
+        "vektah/psr2": "*",
+		"squizlabs/php_codesniffer": "1.*"
     },
 
     "bin": [
