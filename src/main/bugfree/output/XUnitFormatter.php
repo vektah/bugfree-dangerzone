@@ -16,6 +16,8 @@ class XUnitFormatter implements OutputFormatter
     private $errors = [];
     /** @var Error[] */
     private $warnings = [];
+    /** @var string[] */
+    private $fatals = [];
     private $startTime;
     private $line_length = 0;
     private $expectedTests = 0;
@@ -58,6 +60,8 @@ class XUnitFormatter implements OutputFormatter
             } elseif ($error->severity == ErrorType::WARNING) {
                 $warning_count++;
                 $this->warnings[] = $error;
+            } else {
+                $this->fatals[] = $error;
             }
         }
 
@@ -114,6 +118,22 @@ class XUnitFormatter implements OutputFormatter
             foreach ($this->warnings as $warningNumber => $warning) {
                 $warningNumber++;
                 $this->output->writeln("{$warningNumber}) {$warning->getFormatted()}");
+            }
+            $this->output->writeln('');
+        }
+
+        $fatalCount = count($this->fatals);
+        if ($fatalCount > 0) {
+            $this->output->writeln("There were $fatalCount fatal issues:");
+            $this->output->writeln('');
+
+            foreach ($this->fatals as $fatalNumber => $fatal) {
+                $fatalNumber++;
+                if ($fatal instanceof Error) {
+                    $this->output->writeln("{$fatalNumber}) {$fatal->getFormatted()}");
+                } else {
+                    $this->output->writeln("{$fatalNumber}) {$fatal}");
+                }
             }
             $this->output->writeln('');
         }

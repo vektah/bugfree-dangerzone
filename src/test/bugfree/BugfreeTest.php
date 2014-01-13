@@ -568,6 +568,25 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(0, count($result->getErrors()), print_r($result->getErrors(), true));
     }
 
+    /**
+     * @dataProvider builtinTypeProvider
+     */
+    public function testClassSupport($builtinType)
+    {
+        Phake::when($this->resolver)->isValid("\\foo\\$builtinType")->thenReturn(false);
+
+        $src = "<?php namespace foo;
+            /**
+             * @param $builtinType \$a ggg
+             */
+            function foo(\$a) { \$classname = \$a::class; }
+        ";
+
+        $result = $this->bugfree->parse('test', $src, $this->resolver);
+
+        $this->assertEquals(0, count($result->getErrors()), print_r($result->getErrors(), true));
+    }
+
     public function testTypesCombinedWithOrInDocTypeHint()
     {
         Phake::when($this->resolver)->isValid("\\foo\\string")->thenReturn(false);

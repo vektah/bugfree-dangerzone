@@ -71,7 +71,6 @@ class Worker extends Command
 
         if (is_string($configFilename = $input->getOption('config'))) {
             if (file_exists(stream_resolve_include_path($configFilename))) {
-                $output->writeln("Config loaded from '$configFilename'\n");
                 $config = Config::load($configFilename);
             } else {
                 if ($input->getOption('config') != 'bugfree.json') {

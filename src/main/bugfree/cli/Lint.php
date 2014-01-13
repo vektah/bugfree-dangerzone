@@ -3,11 +3,8 @@
 namespace bugfree\cli;
 
 
-use bugfree\Error;
 use Exception;
-use bugfree\AutoloaderResolver;
-use bugfree\Bugfree;
-use bugfree\config\Config;
+use bugfree\Error;
 use bugfree\output\CheckStyleOutputFormatter;
 use bugfree\output\JunitOutputFormatter;
 use bugfree\output\OutputFormatter;
@@ -19,9 +16,9 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use vektah\common\System;
 use vektah\common\json\InvalidJsonException;
 use vektah\common\json\Json;
-use vektah\common\System;
 
 class Lint extends Command
 {
@@ -53,7 +50,7 @@ class Lint extends Command
         );
         $this->addOption(
             'basedir',
-            'd',
+            'D',
             InputOption::VALUE_REQUIRED,
             "The start of the namespace path, used to validate partial uses.",
             'src'
@@ -95,6 +92,12 @@ class Lint extends Command
             "The config file to generate/update",
             'bugfree.json'
         );
+        $this->addOption(
+            'ini_set',
+            'd',
+            InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED,
+            "Ini settings to pass through to the worker"
+        );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -106,19 +109,19 @@ class Lint extends Command
             $formatter->add(new XUnitFormatter($output));
         }
 
+        $options = [];
+
         if (is_string($bootstrap = $input->getOption('bootstrap'))) {
             if (!file_exists(stream_resolve_include_path($bootstrap))) {
                 $output->writeln("Bootstrap '$bootstrap' does not exist!");
             } else {
-                require_once($bootstrap);
+                $options['--bootstrap'] = $bootstrap;
             }
         }
 
-        $options = [];
-
         if (is_string($configFilename = $input->getOption('config'))) {
             if (file_exists(stream_resolve_include_path($configFilename))) {
-                $options['config'] = $configFilename;
+                $options['--config'] = $configFilename;
             } else {
                 if ($input->getOption('config') != 'bugfree.json') {
                     throw new Exception("Unable to find config file '$configFilename'");
@@ -126,8 +129,14 @@ class Lint extends Command
             }
         }
 
+        $php_options = [];
+
+        if ($ini = $input->getOption('ini_set')) {
+            $php_options['-d'] = $ini;
+        }
+
         if ($input->getOption('autoFix')) {
-            $options['autofix'] = true;
+            $options['--autoFix'] = true;
         }
 
         if (is_string($xmlFilename = $input->getOption('junitXml'))) {
@@ -146,15 +155,21 @@ class Lint extends Command
             $fileList = array_merge($fileList, $this->scan($file, $exclude));
         }
 
-        $options['basedir'] = realpath($input->getOption('basedir'));
+        $options['--basedir'] = realpath($input->getOption('basedir'));
 
         $workers = [];
 
         for ($i = 0; $i < $input->getOption('workers'); $i++) {
-            $workers[] = new WorkerClient($options);
+            $workers[] = new WorkerClient($options, $php_options);
         }
 
-        return $this->lintFiles($formatter, $fileList);
+        $status = $this->lintFiles($workers, $formatter, $fileList);
+
+        foreach ($workers as $worker) {
+            $worker->stop();
+        }
+
+        return $status;
     }
 
     /**
@@ -198,14 +213,23 @@ class Lint extends Command
         $count = count($files);
         $formatter->begin($count);
 
-        $errors = self::SUCCESS;
+        $exit_status = self::SUCCESS;
         $testNumber = 0;
 
         while (true) {
+            $all_idle = true;
             foreach ($workers as $worker) {
                 if (!$worker->isBusy()) {
                     if (!empty($files)) {
                         $worker->sendTask(array_pop($files));
+                        $all_idle = false;
+                    }
+                } else {
+                    $all_idle = false;
+                    if ($error = $worker->readAllError()) {
+                        $formatter->testFailed($testNumber, $worker->getCurrentFile(), ["Error from worker: $error"]);
+                        $worker->stop();
+                        continue;
                     }
 
                     if ($result = $worker->getResult()) {
@@ -213,66 +237,42 @@ class Lint extends Command
                         try {
                             $decoded = Json::decode($result);
 
+                            if (!is_array($decoded)) {
+                                $formatter->testFailed($testNumber, $worker->getCurrentFile(), ["Invalid response from worker: $result"]);
+                                continue;
+                            }
+
                             foreach ($decoded as $file => $errors) {
                                 if (is_array($errors)) {
-                                    $errors = self::ERROR;
+                                    $exit_status = self::ERROR;
                                     $converted_errors = [];
-
                                     foreach ($errors as $error) {
-                                        $converted_errors[] = new Error();
+                                        $converted_errors[] = new Error($error);
                                     }
 
-                                    $formatter->testFailed($testNumber, $file, $errors);
+                                    $formatter->testFailed($testNumber, $file, $converted_errors);
                                 } else {
                                     $formatter->testPassed($testNumber, $file);
                                 }
                             }
 
                         } catch (InvalidJsonException $e) {
+                            $result .= $worker->readAll();
                             $formatter->testFailed($testNumber, $worker->getCurrentFile(), ['Communication error with worker:' . $result]);
                             $worker->stop();
-                            $worker->start();
                         }
                     }
                 }
             }
+
+            if ($all_idle && empty($files)) {
+                break;
+            }
+            usleep(10e3);
         }
 
-        foreach ($files as $index => $file) {
-            $testNumber = $index+1;
+        $formatter->end($exit_status);
 
-            try {
-                $rawFileContents = file_get_contents($file);
-                $result = $bugfree->parse($file, $rawFileContents);
-            } catch (\Exception $e) {
-                $formatter->testFailed($testNumber, $file, [$e->getMessage()], []);
-                continue;
-            }
-
-            if (count($result->getErrors()) > 0) {
-                $errors = self::ERROR;
-            }
-
-            if (count($result->getErrors()) > 0) {
-                $formatter->testFailed($testNumber, $file, $result->getErrors());
-            } else {
-                $formatter->testPassed($testNumber, $file);
-            }
-
-            if (count($result->getFixes()) > 0) {
-                $fixes = $result->getFixes();
-
-                $fileLines = preg_split('/\r|\r\n|\n/', $rawFileContents);
-                foreach ($fixes as $fix) {
-                    $fix->run($fileLines);
-                }
-
-                file_put_contents($file, implode("\n", $fileLines));
-            }
-        }
-
-        $formatter->end($errors);
-
-        return $errors;
+        return $exit_status;
     }
 }

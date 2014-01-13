@@ -3,8 +3,6 @@
 namespace bugfree\cli;
 
 
-use Symfony\Component\Process\Process;
-
 /**
  * Most of this class should be put into its own repo as vektah/process. Symfony Process just isn't flexible enough with
  * access to pipes.
@@ -25,12 +23,16 @@ class WorkerClient
 
     private $options = [];
 
-    public function __construct($options)
+    private $php_options = [];
+
+    public function __construct($options, $php_options = [])
     {
         $this->options = $options;
+        $this->php_options = $php_options;
     }
 
-    public function sendTask($filename) {
+    public function sendTask($filename)
+    {
         if ($this->currentFile) {
             throw new \LogicException("This worker is busy with $filename");
         }
@@ -50,14 +52,34 @@ class WorkerClient
         stream_set_blocking($this->pipes[2], $blocking);
     }
 
-    public function getResult() {
+    public function getResult()
+    {
         $this->stdoutBuffer .= $this->read(1024);
-        if ($result = strstr($this->stdoutBuffer, "\n", true) !== false) {
+        if (($result = strstr($this->stdoutBuffer, "\n", true)) !== false) {
             $this->stdoutBuffer = substr($this->stdoutBuffer, strlen($result) + 1);
+            $this->currentFile = null;
             return $result;
         }
 
         return null;
+    }
+
+    private function arrayToOptions(array $array) {
+        $options = '';
+
+        foreach ($array as $option_name => $option_value) {
+            if ($option_value === true) {
+                $options .= " $option_name";
+            } elseif (is_array($option_value)) {
+                foreach ($option_value as $value) {
+                    $options .= " $option_name $value";
+                }
+            } else {
+                $options .= " $option_name=$option_value";
+            }
+        }
+
+        return trim($options);
     }
 
     public function start() {
@@ -73,19 +95,18 @@ class WorkerClient
             ['pipe', 'w'],  // stderr
         ];
 
-        $options = '';
+        $php_options = $this->arrayToOptions($this->php_options);
 
-        foreach ($this->options as $option_name => $option_value) {
-            $options .= " --$option_name=$option_value";
-        }
+        $options = $this->arrayToOptions($this->options);
 
-        $this->process = proc_open("$basedir/bin/bugfree worker $options", $descriptors, $this->pipes, $basedir);
+        $this->stdoutBuffer = '';
+        $this->process = proc_open("/usr/bin/env php $php_options $basedir/bin/bugfree worker $options", $descriptors, $this->pipes);
         $this->isRunning = true;
     }
 
     public function write($string)
     {
-        fwrite($this->pipes[0], $string);
+        return fwrite($this->pipes[0], $string);
     }
 
     public function read($length)
@@ -93,17 +114,33 @@ class WorkerClient
         return fread($this->pipes[1], $length);
     }
 
+    public function readAll()
+    {
+        return stream_get_contents($this->pipes[1]);
+    }
+
     public function readError($length)
     {
         return fread($this->pipes[2], $length);
     }
 
-    public function stop() {
+    public function readAllError()
+    {
+        return stream_get_contents($this->pipes[2]);
+    }
+
+    public function stop()
+    {
+        if (!$this->isRunning) {
+            return;
+        }
+
         foreach ($this->pipes as $pipe) {
             fclose($pipe);
         }
         proc_close($this->process);
         $this->isRunning = false;
+        $this->currentFile = null;
     }
 
     public function isRunning()
@@ -116,7 +153,8 @@ class WorkerClient
         return (boolean)$this->currentFile;
     }
 
-    public function getCurrentFile() {
-        return $this->currentFile
+    public function getCurrentFile()
+    {
+        return $this->currentFile;
     }
 }
