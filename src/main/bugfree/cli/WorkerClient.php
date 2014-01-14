@@ -25,7 +25,7 @@ class WorkerClient
 
     private $php_options = [];
 
-    public function __construct($options, $php_options = [])
+    public function __construct($options, array $php_options = [])
     {
         $this->options = $options;
         $this->php_options = $php_options;

@@ -21,10 +21,10 @@
     },
 
     "require-dev": {
-        "phake/phake": "v2.0.0-alpha2",
-        "phpunit/phpunit": "3.7.21",
+        "phake/phake": "v2.0.0-alpha4",
+        "phpunit/phpunit": "3.7.*",
         "vektah/psr2": "*",
-		"squizlabs/php_codesniffer": "1.*"
+        "squizlabs/php_codesniffer": "1.*"
     },
 
     "bin": [
