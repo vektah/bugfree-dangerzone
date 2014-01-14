@@ -70,6 +70,17 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
         $this->assertErrorWithMessage($result->getErrors(), "Use 'asdf' is not being used");
     }
 
+    public function testUseInSameNamespace()
+    {
+        $src = '<?php namespace foo\bar;
+            use foo\bar\Blah;
+            $blah = new Blah();
+        ';
+        $result = $this->bugfree->parse('test', $src, $this->resolver);
+
+        $this->assertErrorWithMessage($result->getErrors(), "Use 'foo\bar\Blah' is automatically included as it is in the same namespace");
+    }
+
     public function testDuplicateAlias()
     {
         $src = '<?php namespace foo;

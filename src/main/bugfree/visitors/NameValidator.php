@@ -191,11 +191,11 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
                         $this->result->error(
                             ErrorType::DUPLICATE_ALIAS,
                             $use->getLine(),
-                            "Alias '{$use->alias}' is already in use on line $line'"
+                            "Alias '{$use->alias}' is already in use on line $line"
                         );
                     }
 
-                    $this->aliases[$use->alias] = new UseTracker($use->alias, $use->name, $use);
+                    $this->aliases[$use->alias] = new UseTracker($use->alias, (string)$use->name, $use);
                     $this->useStatements[] = $use;
 
                 } else {
@@ -319,8 +319,16 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
         $unusedFixes = [];
 
         foreach ($this->aliases as $use) {
+            $errorMsg = '';
+            $name = $use->getName();
+
             if ($use->getUseCount() == 0) {
-                $errorMsg = "Use '{$use->getName()}' is not being used";
+                $errorMsg = "Use '$name' is not being used";
+            } elseif (str_replace("$this->namespace\\", '', "\\$name") === $use->getAlias()) {
+                $errorMsg = "Use '$name' is automatically included as it is in the same namespace";
+            }
+
+            if ($errorMsg) {
                 if ($autoFix) {
                     $line = $use->getNode()->getLine();
 
