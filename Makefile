@@ -3,7 +3,7 @@ PHPUNIT_BIN := ./vendor/bin/phpunit
 BUGFREE_BIN := ./bin/bugfree
 PHPCS_BIN := ./vendor/bin/phpcs --standard=vendor/vektah/psr2
 
-defualt: test
+default: test
 
 depends: vendor
 
