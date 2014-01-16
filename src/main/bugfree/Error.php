@@ -17,7 +17,7 @@ class Error
     public $line = 1;
     public $severity;
 
-    public function __construct(array $data = [])
+    public function __construct($data = [])
     {
         if (is_string($data)) {
             $this->message = $data;

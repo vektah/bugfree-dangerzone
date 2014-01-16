@@ -106,7 +106,7 @@ class Worker extends Command
                 $result = $bugfree->parse($file, $rawFileContents);
             } catch (\Exception $e) {
                 $status = self::ERROR;
-                $formatter->testFailed(1, $file, [$e->getMessage()], []);
+                $formatter->testFailed(1, $file, ["Exception while parsing $file " . get_class($e) . '("' . $e->getMessage() . "\")\n" . $e->getTraceAsString()], []);
                 continue;
             }
 
