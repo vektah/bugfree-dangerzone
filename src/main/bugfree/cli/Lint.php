@@ -2,13 +2,13 @@
 
 namespace bugfree\cli;
 
-
 use Exception;
 use bugfree\Error;
 use bugfree\output\CheckStyleOutputFormatter;
 use bugfree\output\JunitOutputFormatter;
 use bugfree\output\OutputFormatter;
 use bugfree\output\OutputMuxer;
+use bugfree\output\PmdXmlOutputFormatter;
 use bugfree\output\TapFormatter;
 use bugfree\output\XUnitFormatter;
 use Symfony\Component\Console\Command\Command;
@@ -52,8 +52,7 @@ class Lint extends Command
             'basedir',
             'D',
             InputOption::VALUE_REQUIRED,
-            "The start of the namespace path, used to validate partial uses.",
-            'src'
+            "The start of the namespace path, used to validate partial uses."
         );
         $this->addOption(
             'tap',
@@ -86,6 +85,12 @@ class Lint extends Command
             'Output checkstyle xml to the file provided.'
         );
         $this->addOption(
+            'pmdXml',
+            null,
+            InputOption::VALUE_NONE,
+            'Output PMD/PHPMD xml to stdout.'
+        );
+        $this->addOption(
             'config',
             'c',
             InputOption::VALUE_OPTIONAL,
@@ -105,6 +110,8 @@ class Lint extends Command
         $formatter = new OutputMuxer();
         if ($input->getOption('tap')) {
             $formatter->add(new TapFormatter($output));
+        } elseif ($input->getOption('pmdXml')) {
+            $formatter->add(new PmdXmlOutputFormatter($output));
         } else {
             $formatter->add(new XUnitFormatter($output));
         }
@@ -155,7 +162,9 @@ class Lint extends Command
             $fileList = array_merge($fileList, $this->scan($file, $exclude));
         }
 
-        $options['--basedir'] = realpath($input->getOption('basedir'));
+        if ($basedir = $input->getOption('basedir')) {
+            $options['--basedir'] = realpath($input->getOption('basedir'));
+        }
 
         $workers = [];
 
