@@ -13,7 +13,7 @@ use bugfree\visitors\NameValidator;
  */
 class Bugfree
 {
-    const VERSION = '0.3.1';
+    const VERSION = '0.3.2';
 
     /** @var Resolver */
     private $resolver;
