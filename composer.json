@@ -17,7 +17,8 @@
         "nikic/php-parser": "0.9.4",
         "symfony/console": "*",
         "doctrine/annotations": "*",
-        "vektah/common": "*"
+        "vektah/common": "*",
+        "vektah/parser-combinator": "*"
     },
 
     "require-dev": {

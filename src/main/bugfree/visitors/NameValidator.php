@@ -4,13 +4,17 @@ namespace bugfree\visitors;
 
 
 use bugfree\ErrorType;
+use bugfree\fix\StrReplaceFix;
 use bugfree\Resolver;
 use bugfree\Result;
 use bugfree\UseTracker;
-use bugfree\annotation\Docblock;
 use bugfree\fix\RemoveLineFix;
 use bugfree\fix\SwapLineFix;
 use bugfree\helper\UseStatementOrganizer;
+use vektah\parser_combinator\language\php\annotation\ConstLookup;
+use vektah\parser_combinator\language\php\annotation\DoctrineAnnotation;
+use vektah\parser_combinator\language\php\annotation\NonDoctrineAnnotation;
+use vektah\parser_combinator\language\php\annotation\PhpAnnotationParser;
 
 /**
  * Fairly similar to PHP Parser's NameResolver except:
@@ -33,6 +37,9 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
 
     /** @var Result */
     private $result;
+
+    /** @var PhpAnnotationParser */
+    private $annotationParser;
 
     private static $ignored_types = [
         'string' => true,
@@ -63,6 +70,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
     {
         $this->result = $result;
         $this->resolver = $resolver;
+        $this->annotationParser = new PhpAnnotationParser();
     }
 
     /**
@@ -75,7 +83,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
         $qualifiedName = null;
         $parts = $type->parts;
 
-        if (in_array($parts[0], ['self', 'static', 'parent'])) {
+        if (in_array($parts[0], ['self', 'static', 'parent', '$this'])) {
             return;
         }
 
@@ -123,25 +131,6 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
         }
 
     }
-
-    /**
-     * resolves a type that was found in a docblock annotation.
-     *
-     * @param int $line
-     * @param array $token
-     */
-    private function resolveAnnotatedType($line, $token)
-    {
-        foreach (explode('|', $token['type']) as $typePart) {
-            if (substr($typePart, strlen($typePart) - 2) == '[]') {
-                $typePart = substr($typePart, 0, strlen($typePart) - 2);
-            }
-            if (!isset(self::$ignored_types[strtolower($typePart)])) {
-                $this->resolveType($line + $token['line'], $this->nodeFromString($typePart), true);
-            }
-        }
-    }
-
 
     /**
      * Called once before traversal.
@@ -255,11 +244,130 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
 
                 /** @var $docblock \PHPParser_Comment_Doc */
                 if ($docblock = $node->getDocComment()) {
-                    $doc = new Docblock($docblock->getText());
+                    $annotations = $this->annotationParser->parseString($docblock->getText());
 
-                    foreach ($doc->getTypes() as $type) {
-                        $this->resolveAnnotatedType($docblock->getLine(), $type);
+                    foreach ($annotations as $annotation) {
+                        if ($annotation instanceof DoctrineAnnotation) {
+                            $this->resolveDoctrineComment($docblock->getLine() - 1, $annotation);
+                        } elseif ($annotation instanceof NonDoctrineAnnotation) {
+                            $this->resolveNonDoctrineComment($docblock->getLine() - 1, $annotation);
+                        }
+
                     }
+                }
+            }
+        }
+    }
+
+    private function resolveDoctrineComment($line, DoctrineAnnotation $annotation)
+    {
+        if (!in_array($annotation->name, ['Annotation', 'Target'])) {
+            $this->resolveAnnotatedType($line + $annotation->line, $annotation->name);
+        }
+
+        foreach ($annotation->arguments as $value) {
+            $this->resolveDoctrineCommentArgument($line, $value);
+        }
+    }
+
+    private function resolveDoctrineCommentArgument($line, $argument)
+    {
+        if (is_array($argument)) {
+            foreach ($argument as $value) {
+                $this->resolveDoctrineCommentArgument($line, $value);
+            }
+        }
+
+        if ($argument instanceof DoctrineAnnotation) {
+            $this->resolveDoctrineComment($line, $argument);
+        }
+
+        if ($argument instanceof ConstLookup) {
+            if ($argument->class) {
+                $this->resolveAnnotatedType($line + $argument->line, $argument->class);
+            }
+        }
+    }
+
+    private function resolveNonDoctrineComment($line, NonDoctrineAnnotation $annotation)
+    {
+        $line = $line + $annotation->line;
+        $autoFix = $this->result->getConfig()->autoFix;
+
+        if (in_array($annotation->name, ['var', 'param', 'return', 'method', 'property', 'throws'])) {
+            $word = preg_split('~[\s\[]+~', $annotation->value);
+
+            if (count($word) === 1) {
+                $this->resolveAnnotatedType($line, $word[0]);
+            } elseif (count($word) > 1) {
+                // Types are backwards here eg @var $foo Type
+                if (strlen($word[0]) >= 1 && $word[0][0] === '$' && $word[0] !== '$this') {
+                    $this->resolveAnnotatedType($line, $word[1]);
+                } else {
+                    $this->resolveAnnotatedType($line, $word[0]);
+                }
+            }
+
+        }
+
+        $tagTypos = [
+            'returns' => 'return',
+            'throw' => 'throws',
+            'params' => 'param',
+            'param[in]' => 'param',
+            'param[out]' => 'param',
+        ];
+
+        foreach ($tagTypos as $typo => $fix) {
+            if ($annotation->name === $typo) {
+                $reason = "@$typo should be @$fix";
+
+                if ($autoFix) {
+                    $this->result->fix(new StrReplaceFix($line, $reason, $typo, $fix));
+                } else {
+                    $this->result->error(ErrorType::COMMON_TYPOS, $line, $reason);
+                }
+            }
+        }
+    }
+
+    /**
+     * resolves a type that was found in a docblock annotation.
+     *
+     * @param int $line
+     * @param array $token
+     */
+    private function resolveAnnotatedType($line, $token)
+    {
+        $typeFixes = [
+            'numeric' => 'int|string|float',
+            'number' => 'int|string|float',
+            'assoc' => 'array',
+            'assoc-array' => 'array',
+            'hash' => 'array',
+        ];
+
+        foreach (explode('|', $token) as $typePart) {
+            if (substr($typePart, strlen($typePart) - 2) == '[]') {
+                $typePart = substr($typePart, 0, strlen($typePart) - 2);
+            }
+            if (!isset(self::$ignored_types[strtolower($typePart)])) {
+                $all_ok = true;
+                foreach ($typeFixes as $typo => $replacement) {
+                    if (strtolower($typePart) === $typo) {
+                        $all_ok = false;
+                        $reason = "$typo is not a valid type. Please see http://www.phpdoc.org/docs/latest/for-users/phpdoc/types.html for a list of valid types.";
+
+                        if ($this->result->getConfig()->autoFix) {
+                            $this->result->fix(new StrReplaceFix($line, $reason, $typo, $replacement));
+                        } else {
+                            $this->result->error(ErrorType::COMMON_TYPOS, $line, $reason);
+                        }
+                    }
+                }
+
+                if ($all_ok) {
+                    $this->resolveType($line, $this->nodeFromString($typePart), true);
                 }
             }
         }
@@ -312,7 +420,10 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
                     $this->result->fix($fix);
                 }
             } else {
-                $this->result->error(ErrorType::DISORGANIZED_USES, null, $errorMsg);
+                $lineSwaps = $useStatementOrganizer->getLineSwaps();
+                foreach ($lineSwaps as $currentLine => $newLine) {
+                    $this->result->error(ErrorType::DISORGANIZED_USES, $currentLine, $errorMsg . ": this use should be on $newLine");
+                }
             }
         }
 
@@ -340,7 +451,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
                     $fix = new RemoveLineFix($line, $errorMsg);
                     $unusedFixes[$line] = $fix;
                 } else {
-                    $this->result->error(ErrorType::UNUSED_USE, null, $errorMsg);
+                    $this->result->error(ErrorType::UNUSED_USE, $use->getNode()->getLine(), $errorMsg);
                 }
             }
         }

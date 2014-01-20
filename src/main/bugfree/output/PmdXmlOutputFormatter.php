@@ -36,8 +36,11 @@ class PmdXmlOutputFormatter implements OutputFormatter
 
             $line = $error->line ? $error->line : 1;
 
+            $message = str_replace('>', '&gt;', $error->message);
+            $message = str_replace('<', '&lt;', $message);
+
             $this->output->writeln("\t\t<violation beginline=\"{$line}\" endline=\"{$line}\" rule=\"bugfree_$type\" ruleset=\"bugfree\" priority=\"1\">");
-            $this->output->writeln("\t\t\tBugfree: {$error->message}");
+            $this->output->writeln("\t\t\tBugfree: $message");
             $this->output->writeln("\t\t</violation>");
         }
         $this->output->writeln("\t</file>");

@@ -16,6 +16,7 @@ class ErrorType
     const MISSING_NAMESPACE                     = 'missingNamespace';
     const UNUSED_USE                            = 'unusedUse';
     const DISORGANIZED_USES                     = 'disorganizedUses';
+    const COMMON_TYPOS                          = 'commonTypos';
 
     const WARNING = 'warning';
     const ERROR = 'error';

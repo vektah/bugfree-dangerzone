@@ -18,6 +18,7 @@ class EmitLevel
     public $missingNamespace = ErrorType::ERROR;
     public $unusedUse = ErrorType::WARNING;
     public $disorganizedUses = ErrorType::WARNING;
+    public $commonTypos = ErrorType::WARNING;
 
     public function __construct(array $values = [])
     {
