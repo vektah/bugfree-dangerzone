@@ -22,6 +22,15 @@ abstract class AbstractFix implements Fix
         return $this->line;
     }
 
+    public function getOrder()
+    {
+        return $this->line;
+    }
+
+    public function getRank() {
+        return 100;
+    }
+
     abstract public function run(array &$fileLines);
 
     public function getReason()

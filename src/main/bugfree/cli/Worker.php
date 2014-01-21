@@ -3,7 +3,6 @@
 namespace bugfree\cli;
 
 
-use Exception;
 use bugfree\AutoloaderResolver;
 use bugfree\Bugfree;
 use bugfree\config\Config;
@@ -24,20 +23,6 @@ class Worker extends Command
 
         $this->setName('worker');
         $this->setDescription('Waits for files to run on stdin and returns JSON results as each completes.');
-        $this->addOption(
-            'bootstrap',
-            'b',
-            InputOption::VALUE_REQUIRED,
-            "Run this file before starting analysis, Can be used on your projects vendor/autoload.php directly"
-        );
-
-        $this->addOption(
-            'basedir',
-            'd',
-            InputOption::VALUE_REQUIRED,
-            "The start of the namespace path, used to validate partial uses.",
-            'src'
-        );
 
         $this->addOption(
             'autoFix',
@@ -55,36 +40,27 @@ class Worker extends Command
         );
     }
 
+    /**
+     * Requires the boostrap file. This is in its own function to prevent the bootstrap from altering local variables.
+     *
+     * @param string $filename
+     */
+    private function bootstrap($filename) {
+        require_once($filename);
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $formatter = new JsonFormatter($output);
 
-        if (is_string($bootstrap = $input->getOption('bootstrap'))) {
-            if (!file_exists(stream_resolve_include_path($bootstrap))) {
-                $output->writeln("Bootstrap '$bootstrap' does not exist!");
-            } else {
-                require_once($bootstrap);
-            }
-        }
-
-        $config = new Config();
-
-        if (is_string($configFilename = $input->getOption('config'))) {
-            if (file_exists(stream_resolve_include_path($configFilename))) {
-                $config = Config::load($configFilename);
-            } else {
-                if ($input->getOption('config') != 'bugfree.json') {
-                    throw new Exception("Unable to find config file '$configFilename'");
-                }
-            }
-        }
+        $config = Config::load($input->getOption('config'));
+        $this->bootstrap($config->getBoostrapPath());
 
         if ($input->getOption('autoFix')) {
             $config->autoFix = true;
         }
 
-        $basedir = realpath($input->getOption('basedir'));
-        $bugfree = new Bugfree(new AutoloaderResolver($basedir), $config);
+        $bugfree = new Bugfree(new AutoloaderResolver($config), $config);
 
         $status = self::SUCCESS;
 
@@ -125,7 +101,7 @@ class Worker extends Command
                     $fix->run($fileLines);
                 }
 
-                file_put_contents($file, implode("\n", $fileLines));
+                file_put_contents($file, trim(implode("\n", $fileLines)) . "\n");
             }
 
             $formatter->end($status);

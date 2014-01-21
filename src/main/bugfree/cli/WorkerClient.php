@@ -116,7 +116,9 @@ class WorkerClient
 
     public function readAll()
     {
-        return stream_get_contents($this->pipes[1]);
+        $buffer = $this->stdoutBuffer;
+        $this->stdoutBuffer = '';
+        return $buffer . stream_get_contents($this->pipes[1]);
     }
 
     public function readError($length)

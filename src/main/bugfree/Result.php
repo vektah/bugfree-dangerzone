@@ -77,6 +77,15 @@ class Result
      */
     public function getFixes()
     {
+        usort($this->fixes, function(Fix $a, Fix $b) {
+            // If ranks are not the same use those to decide.
+            if ($a->getRank() !== $b->getRank()) {
+                return $b->getRank() - $a->getRank();
+            }
+
+            return $b->getOrder() - $a->getOrder();
+        });
+
         return $this->fixes;
     }
 

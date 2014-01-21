@@ -25,4 +25,9 @@ class SwapLineFix extends AbstractFix
         $fileLines[$sourceIndex] = $destinationLine;
         $fileLines[$destinationIndex] = $sourceLine;
     }
+
+    public function getRank()
+    {
+        return 50;
+    }
 }

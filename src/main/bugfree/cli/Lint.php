@@ -2,7 +2,6 @@
 
 namespace bugfree\cli;
 
-use Exception;
 use bugfree\Error;
 use bugfree\output\CheckStyleOutputFormatter;
 use bugfree\output\JunitOutputFormatter;
@@ -36,23 +35,11 @@ class Lint extends Command
             'Directory or list of files to scan'
         );
         $this->addOption(
-            'bootstrap',
-            'b',
-            InputOption::VALUE_REQUIRED,
-            "Run this file before starting analysis, Can be used on your projects vendor/autoload.php directly"
-        );
-        $this->addOption(
             'workers',
             'w',
             InputOption::VALUE_REQUIRED,
             "The number of concurrent workers to run",
             System::cpuCount() + 1
-        );
-        $this->addOption(
-            'basedir',
-            'D',
-            InputOption::VALUE_REQUIRED,
-            "The start of the namespace path, used to validate partial uses."
         );
         $this->addOption(
             'tap',
@@ -118,22 +105,8 @@ class Lint extends Command
 
         $options = [];
 
-        if (is_string($bootstrap = $input->getOption('bootstrap'))) {
-            if (!file_exists(stream_resolve_include_path($bootstrap))) {
-                $output->writeln("Bootstrap '$bootstrap' does not exist!");
-            } else {
-                $options['--bootstrap'] = $bootstrap;
-            }
-        }
-
         if (is_string($configFilename = $input->getOption('config'))) {
-            if (file_exists(stream_resolve_include_path($configFilename))) {
-                $options['--config'] = $configFilename;
-            } else {
-                if ($input->getOption('config') != 'bugfree.json') {
-                    throw new Exception("Unable to find config file '$configFilename'");
-                }
-            }
+            $options['--config'] = $configFilename;
         }
 
         $php_options = [];
@@ -160,10 +133,6 @@ class Lint extends Command
         $fileList = [];
         foreach ($files as $file) {
             $fileList = array_merge($fileList, $this->scan($file, $exclude));
-        }
-
-        if ($basedir = $input->getOption('basedir')) {
-            $options['--basedir'] = realpath($input->getOption('basedir'));
         }
 
         $workers = [];
@@ -248,6 +217,7 @@ class Lint extends Command
 
                             if (!is_array($decoded)) {
                                 $formatter->testFailed($testNumber, $worker->getCurrentFile(), ["Invalid response from worker: $result"]);
+                                $exit_status = 1;
                                 continue;
                             }
 
@@ -269,12 +239,24 @@ class Lint extends Command
                             $result .= $worker->readAll();
                             $formatter->testFailed($testNumber, $worker->getCurrentFile(), ['Communication error with worker:' . $result]);
                             $worker->stop();
+                            $exit_status = 1;
                         }
                     }
                 }
             }
 
             if ($all_idle && empty($files)) {
+                foreach ($workers as $worker) {
+                    if ($worker->isRunning()) {
+                        $stdout = $worker->readAll();
+                        $stderr = $worker->readAllError();
+
+                        if ($stdout || $stderr) {
+                            $formatter->testFailed($testNumber, $worker->getCurrentFile(), ["Worker error: \n" . $stdout . $stderr]);
+                            $exit_status = 1;
+                        }
+                    }
+                }
                 break;
             }
             usleep(10e3);

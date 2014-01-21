@@ -1,0 +1,20 @@
+{
+    "autoload": {
+        "bugfree\\": "src/main/"
+    },
+    "bootstrap": "vendor/autoload.php",
+    "emitLevel": {
+        "unableToResolveType": "error",
+        "unableToResolveTypeInComment": "error",
+        "unableToResolveUse": "error",
+        "useOfUnqualifiedType": "warning",
+        "useOfUnqualifiedTypeInComment": "warning",
+        "duplicateAlias": "error",
+        "malformedUse": "error",
+        "multiStatementUse": "warning",
+        "missingNamespace": "error",
+        "unusedUse": "warning",
+        "disorganizedUses": "warning",
+        "commonTypos": "warning"
+    }
+}

@@ -29,65 +29,65 @@ class UseStatementOrganizer
         $this->organizedUseStatements = $this->getOrganizedUseStatements();
     }
 
+    public static function compareUse(UseStatement $a, UseStatement $b) {
+        $aParts = $a->name->parts;
+        $aNumParts = count($aParts);
+        $bParts = $b->name->parts;
+        $bNumParts = count($bParts);
+        $numParts = min($aNumParts, $bNumParts);
+
+        $i = 0;
+
+        while ($i < $numParts) {
+            // sort \a\b\c\DClass before \a\b\c\d\EClass
+            $isLastAPart = $i == ($aNumParts - 1);
+            $isLastBPart = $i == ($bNumParts - 1);
+
+            if ($isLastAPart && !$isLastBPart) {
+                return -1;
+            } elseif ($isLastBPart && !$isLastAPart) {
+                return 1;
+            }
+
+            $aPart = $aParts[$i];
+            $bPart = $bParts[$i];
+
+            $comparison = strcasecmp($aPart, $bPart);
+
+            // if the last part of both namespaces is the same, sort by no alias then alias
+            if ($isLastAPart && $isLastBPart && $comparison === 0) {
+                $aAlias = $a->alias;
+                $bAlias = $b->alias;
+
+                // alias is set to the last part of the namespace if not explicitly defined
+                if ($aAlias === $aPart) {
+                    return -1;
+                } elseif ($bAlias === $bPart) {
+                    return 1;
+                }
+
+                return strcmp($aAlias, $bAlias);
+            }
+
+            if ($comparison !== 0) {
+                return $comparison;
+            }
+
+            $i++;
+        }
+
+        return 0;
+    }
+
     /**
      * @return UseStatement[]
      */
     private function getOrganizedUseStatements()
     {
-        $organizer = function (UseStatement $a, UseStatement $b) {
-            $aParts = $a->name->parts;
-            $aNumParts = count($aParts);
-            $bParts = $b->name->parts;
-            $bNumParts = count($bParts);
-            $numParts = min($aNumParts, $bNumParts);
-
-            $i = 0;
-
-            while ($i < $numParts) {
-                // sort \a\b\c\DClass before \a\b\c\d\EClass
-                $isLastAPart = $i == ($aNumParts - 1);
-                $isLastBPart = $i == ($bNumParts - 1);
-
-                if ($isLastAPart && !$isLastBPart) {
-                    return -1;
-                } elseif ($isLastBPart && !$isLastAPart) {
-                    return 1;
-                }
-
-                $aPart = $aParts[$i];
-                $bPart = $bParts[$i];
-
-                $comparison = strcasecmp($aPart, $bPart);
-
-                // if the last part of both namespaces is the same, sort by no alias then alias
-                if ($isLastAPart && $isLastBPart && $comparison === 0) {
-                    $aAlias = $a->alias;
-                    $bAlias = $b->alias;
-
-                    // alias is set to the last part of the namespace if not explicitly defined
-                    if ($aAlias === $aPart) {
-                        return -1;
-                    } elseif ($bAlias === $bPart) {
-                        return 1;
-                    }
-
-                    return strcmp($aAlias, $bAlias);
-                }
-
-                if ($comparison !== 0) {
-                    return $comparison;
-                }
-
-                $i++;
-            }
-
-            return 0;
-        };
-
         // create a copy
         $useStatements = $this->useStatements;
 
-        usort($useStatements, $organizer);
+        usort($useStatements, __CLASS__ . '::compareUse');
 
         return $useStatements;
     }

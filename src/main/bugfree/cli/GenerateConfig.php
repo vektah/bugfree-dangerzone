@@ -31,12 +31,6 @@ class GenerateConfig extends Command
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $config_filename = $input->getOption('config');
-        if (is_file($config_filename)) {
-            $config = Config::load($config_filename);
-        } else {
-            $config = new Config();
-        }
-
-        $config->save($config_filename);
+        Config::load($config_filename)->save();
     }
 }

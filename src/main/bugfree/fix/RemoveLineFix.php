@@ -9,4 +9,9 @@ class RemoveLineFix extends AbstractFix
     {
         array_splice($fileLines, $this->getLine() - 1, 1);
     }
+
+    public function getRank()
+    {
+        return 0;
+    }
 }

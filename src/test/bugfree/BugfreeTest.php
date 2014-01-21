@@ -109,8 +109,8 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
 
     public function testMultipleNamespaces()
     {
-        Phake::when($this->resolver)->isValid('\foo\Foo')->thenReturn(false);
-        Phake::when($this->resolver)->isValid('\baz\Baz')->thenReturn(false);
+        Phake::when($this->resolver)->isValid('foo\Foo')->thenReturn(false);
+        Phake::when($this->resolver)->isValid('baz\Baz')->thenReturn(false);
 
         $src = "<?php
         namespace foo {
@@ -124,17 +124,17 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
 
         $result = $this->bugfree->parse('test', $src, $this->resolver);
 
-        $this->assertErrorWithMessage($result->getErrors(), "Type '\\foo\\Foo' could not be resolved");
-        $this->assertErrorWithMessage($result->getErrors(), "Type '\\baz\\Baz' could not be resolved");
+        $this->assertErrorWithMessage($result->getErrors(), "Type 'foo\\Foo' could not be resolved");
+        $this->assertErrorWithMessage($result->getErrors(), "Type 'baz\\Baz' could not be resolved");
     }
 
     public function useProvider()
     {
         return [
             [[
-                'invalid'   => ['\testns\DoesNotExist'],
+                'invalid'   => ['testns\DoesNotExist'],
                 'type'      => 'DoesNotExist',
-                'errors'    => ["Type '\\testns\\DoesNotExist' could not be resolved"],
+                'errors'    => ["Type 'testns\\DoesNotExist' could not be resolved"],
             ]],
             [[
                 'invalid'   => [],
@@ -142,23 +142,23 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
                 'errors'    => [],
             ]],
             [[
-                'invalid'   => ['\testns\DoesNotExist'],
+                'invalid'   => ['testns\DoesNotExist'],
                 'type'      => '\testns\DoesNotExist',
                 'errors'    => [
-                    "Type '\\testns\\DoesNotExist' could not be resolved",
+                    "Type 'testns\\DoesNotExist' could not be resolved",
                     'Use of qualified type names is discouraged.'
                 ],
             ]],
             [[
                 'invalid'   => [],
-                'type'      => '\testns\DoesNotExist',
+                'type'      => 'testns\DoesNotExist',
                 'errors'    => ['Use of qualified type names is discouraged.'],
             ]],
             [[
-                'invalid'   => ['\foo\bar\baz\DoesNotExist'],
+                'invalid'   => ['foo\bar\baz\DoesNotExist'],
                 'type'      => 'baz\DoesNotExist',
                 'errors'    => [
-                    "Type '\\foo\\bar\\baz\\DoesNotExist' could not be resolved",
+                    "Type 'foo\\bar\\baz\\DoesNotExist' could not be resolved",
                     'Use of qualified type names is discouraged.'
                 ],
             ]],
@@ -168,10 +168,10 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
                 'errors'    => ['Use of qualified type names is discouraged.'],
             ]],
             [[
-                'invalid'   => ['\testns\boo\DoesNotExist'],
+                'invalid'   => ['testns\boo\DoesNotExist'],
                 'type'      => 'boo\DoesNotExist',
                 'errors'    => [
-                    "Type '\\testns\\boo\\DoesNotExist' could not be resolved",
+                    "Type 'testns\\boo\\DoesNotExist' could not be resolved",
                     'Use of qualified type names is discouraged.'
                 ],
             ]],
@@ -181,9 +181,9 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
                 'errors'    => [],
             ]],
             [[
-                'invalid'   => ['\Thing'],
+                'invalid'   => ['Thing'],
                 'type'      => '\Thing',
-                'errors'    => ["Type '\\Thing' could not be resolved"],
+                'errors'    => ["Type 'Thing' could not be resolved"],
             ]],
             [[
                 'invalid'   => [],
@@ -198,9 +198,6 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
         foreach ($options['invalid'] as $invalid) {
             Phake::when($this->resolver)->isValid($invalid)->thenReturn(false);
         }
-
-        Phake::when($this->resolver)->isValid('\\foo\\bar\\baz')->thenReturn(true);
-        Phake::when($this->resolver)->isValid('\\foo\\Thing')->thenReturn(true);
 
         $result = $this->bugfree->parse('test', $src, $this->resolver);
 
