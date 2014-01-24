@@ -398,8 +398,9 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
 
         if (in_array($annotation->name, ['var', 'param', 'return', 'method', 'property', 'throws'])) {
             $word = preg_split('~[\s\[]+~', $annotation->value);
-
-            if (count($word) === 1) {
+            if (count($word) === 0 || !$word[0]) {
+                $this->result->error(ErrorType::UNABLE_TO_RESOLVE_TYPE_IN_COMMENT, $line, "No type specified, please specify a type");
+            } elseif (count($word) === 1) {
                 $this->resolveAnnotatedType($line, $word[0]);
             } elseif (count($word) > 1) {
                 // Types are backwards here eg @var $foo Type
@@ -482,7 +483,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
 
     private function nodeFromString($str, $line)
     {
-        if ($str[0] == '\\') {
+        if (strlen($str) > 0 && $str[0] == '\\') {
             $node = new \PHPParser_Node_Name_FullyQualified($str);
         } else {
             $node = new \PHPParser_Node_Name($str);
