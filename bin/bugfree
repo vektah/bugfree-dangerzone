@@ -25,6 +25,13 @@ use bugfree\cli\Lint;
 use bugfree\cli\Worker;
 use Symfony\Component\Console\Application;
 
+function exception_error_handler($errno, $errstr, $errfile, $errline) {
+    if (!preg_match('/PHPParser/', $errfile)) {
+        throw new ErrorException($errstr, 0, $errno, $errfile, $errline);
+    }
+}
+set_error_handler("exception_error_handler");
+
 $application = new Application('Bugfree Dangerzone', Bugfree::VERSION);
 $application->add(new Lint());
 $application->add(new Worker());

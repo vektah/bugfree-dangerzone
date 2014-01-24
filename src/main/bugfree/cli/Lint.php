@@ -205,7 +205,7 @@ class Lint extends Command
                 } else {
                     $all_idle = false;
                     if ($error = $worker->readAllError()) {
-                        $formatter->testFailed($testNumber, $worker->getCurrentFile(), ["Error from worker: $error"]);
+                        $formatter->testFailed($testNumber, $worker->getCurrentFile(), [new Error("Error from worker: $error")]);
                         $worker->stop();
                         continue;
                     }
@@ -216,7 +216,7 @@ class Lint extends Command
                             $decoded = Json::decode($result);
 
                             if (!is_array($decoded)) {
-                                $formatter->testFailed($testNumber, $worker->getCurrentFile(), ["Invalid response from worker: $result"]);
+                                $formatter->testFailed($testNumber, $worker->getCurrentFile(), [new Error("Invalid response from worker: $result")]);
                                 $exit_status = 1;
                                 continue;
                             }
@@ -237,7 +237,7 @@ class Lint extends Command
 
                         } catch (InvalidJsonException $e) {
                             $result .= $worker->readAll();
-                            $formatter->testFailed($testNumber, $worker->getCurrentFile(), ['Communication error with worker:' . $result]);
+                            $formatter->testFailed($testNumber, $worker->getCurrentFile(), [new Error('Communication error with worker:' . $result)]);
                             $worker->stop();
                             $exit_status = 1;
                         }
@@ -252,7 +252,7 @@ class Lint extends Command
                         $stderr = $worker->readAllError();
 
                         if ($stdout || $stderr) {
-                            $formatter->testFailed($testNumber, $worker->getCurrentFile(), ["Worker error: \n" . $stdout . $stderr]);
+                            $formatter->testFailed($testNumber, $worker->getCurrentFile(), [new Error("Worker error: \n" . $stdout . $stderr)]);
                             $exit_status = 1;
                         }
                     }

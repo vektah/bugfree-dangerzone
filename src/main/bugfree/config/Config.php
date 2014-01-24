@@ -70,7 +70,7 @@ class Config
         $paths = [];
 
         foreach ($this->autoload as $namespace => $dir) {
-            if ($dir[0] !== '/') {
+            if (strlen($dir) === 0  || $dir[0] !== '/') {
                 $dir = $this->basedir . '/' . $dir;
             }
             $paths[$namespace] = $dir;

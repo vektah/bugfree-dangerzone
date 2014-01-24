@@ -100,7 +100,7 @@ class WorkerClient
         $options = $this->arrayToOptions($this->options);
 
         $this->stdoutBuffer = '';
-        $this->process = proc_open("/usr/bin/env php $php_options $basedir/bin/bugfree worker $options", $descriptors, $this->pipes);
+        $this->process = proc_open("/usr/bin/env php $php_options $basedir/bin/bugfree worker $options -vvv", $descriptors, $this->pipes);
         $this->isRunning = true;
     }
 
