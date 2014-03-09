@@ -611,4 +611,26 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
 
         $this->assertEquals(0, count($result->getErrors()), print_r($result->getErrors(), true));
     }
+
+    public function testEclipseInlineTypeHint()
+    {
+        Phake::when($this->resolver)->isValid("\\foo\\Blah")->thenReturn(true);
+
+        $src = "<?php namespace bar;
+            use foo\Blah;
+
+            class Ha {
+                public function foo(array \$blahs) {
+                    foreach (\$blahs as \$blah) {
+                        /* @var \$blah Blah */
+                        \$blah->bar();
+                    }
+                }
+            }
+        ";
+
+        $result = $this->bugfree->parse('test', $src, $this->resolver);
+
+        $this->assertEquals(0, count($result->getErrors()), print_r($result->getErrors(), true));
+    }
 }
