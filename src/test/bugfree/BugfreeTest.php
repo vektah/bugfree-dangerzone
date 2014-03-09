@@ -534,6 +534,30 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
         $this->verifySource($src, $options);
     }
 
+    /**
+     * @dataProvider useProvider
+     */
+    public function testEclipseInlineTypeHint($options)
+    {
+        $src = "<?php namespace testns;
+            use foo\\bar\\baz;
+            use foo\\Thing;
+
+            function doNotWarnAboutUnused(baz \$a, Thing \$b) {}
+
+            class Ha {
+                public function foo(array \$blahs) {
+                    foreach (\$blahs as \$blah) {
+                        /* @var \$blah {$options['type']} */
+                        \$blah->bar();
+                    }
+                }
+            }
+        ";
+
+        $this->verifySource($src, $options);
+    }
+
     public function builtinTypeProvider()
     {
         return [
@@ -605,28 +629,6 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
              * @param string|integer \$a ggg
              */
             function foo(\$a) {}
-        ";
-
-        $result = $this->bugfree->parse('test', $src, $this->resolver);
-
-        $this->assertEquals(0, count($result->getErrors()), print_r($result->getErrors(), true));
-    }
-
-    public function testEclipseInlineTypeHint()
-    {
-        Phake::when($this->resolver)->isValid("\\foo\\Blah")->thenReturn(true);
-
-        $src = "<?php namespace bar;
-            use foo\Blah;
-
-            class Ha {
-                public function foo(array \$blahs) {
-                    foreach (\$blahs as \$blah) {
-                        /* @var \$blah Blah */
-                        \$blah->bar();
-                    }
-                }
-            }
         ";
 
         $result = $this->bugfree->parse('test', $src, $this->resolver);
