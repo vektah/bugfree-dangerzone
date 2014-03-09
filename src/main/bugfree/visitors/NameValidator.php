@@ -358,6 +358,28 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
                     }
                 }
             }
+
+            // eclipse can only handle inline type hints in a normal comment block
+            if ($node instanceof \PHPParser_Node_Expr_Variable) {
+                $comments = $node->getAttribute('comments');
+
+                if (is_array($comments)) {
+                    $phpVariableRegex = '[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*';
+                    // regex for matching /* @var $variable Class */
+                    $eclipseInlineTypeHintRegex = '~^/\\* @var \\$' . $phpVariableRegex . ' (\\\\?' . $phpVariableRegex . '(\\\\' . $phpVariableRegex . ')*) \\*/$~';
+
+                    foreach ($comments as $comment) {
+                        /* @var $comment \PHPParser_Comment */
+                        $matches = [];
+                        $match = preg_match($eclipseInlineTypeHintRegex, $comment->getText(), $matches);
+
+                        if ($match === 1) {
+                            $className = $matches[1];
+                            $this->resolveAnnotatedType($comment->getLine(), $className);
+                        }
+                    }
+                }
+            }
         }
     }
 
