@@ -19,6 +19,8 @@ class EmitLevel
     public $unusedUse = ErrorType::WARNING;
     public $disorganizedUses = ErrorType::WARNING;
     public $commonTypos = ErrorType::WARNING;
+    public $accessLevel = ErrorType::ERROR;
+    public $methodExists = ErrorType::ERROR;
 
     public function __construct(array $values = [])
     {

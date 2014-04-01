@@ -17,6 +17,8 @@ class ErrorType
     const UNUSED_USE                            = 'unusedUse';
     const DISORGANIZED_USES                     = 'disorganizedUses';
     const COMMON_TYPOS                          = 'commonTypos';
+    const ACCESS_LEVEL                          = 'accessLevel';
+    const METHOD_EXISTS                         = 'methodExists';
 
     const WARNING = 'warning';
     const ERROR = 'error';

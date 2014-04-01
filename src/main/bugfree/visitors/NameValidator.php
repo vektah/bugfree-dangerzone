@@ -3,6 +3,7 @@
 namespace bugfree\visitors;
 
 
+use PHPParser_Node;
 use PHPParser_Node_Stmt_UseUse as UseStatement;
 use bugfree\ErrorType;
 use bugfree\Resolver;
@@ -44,6 +45,9 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
 
     /** @var PhpAnnotationParser */
     private $annotationParser;
+
+    /** @var \PHPParser_Node[] $node */
+    private $nodeStack = [];
 
     private static $ignored_types = [
         'string' => true,
@@ -122,6 +126,25 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
         return implode('\\', array_filter(explode('\\', $classname), 'strlen'));
     }
 
+    private function getQualifiedName(\PHPParser_Node_Name $type) {
+        $parts = $type->parts;
+
+        if ($type->isFullyQualified()) {
+            $qualifiedName = "\\{$type->toString()}";
+        } else {
+            if (isset($this->aliases[$parts[0]])) {
+                $use = $this->aliases[$parts[0]];
+                $parts[0] = "\\" . $use->getName();
+                $use->markUsed();
+            } else {
+                $parts[0] = $this->namespace . "\\" . $parts[0];
+            }
+
+            $qualifiedName = implode("\\", $parts);
+        }
+        return $this->cannonicalize($qualifiedName);
+    }
+
     /**
      * @param int $line    The statement that this class was referenced in for error generation.
      * @param \PHPParser_Node_Name $type    The class to resolve.
@@ -137,20 +160,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
             return;
         }
 
-        if ($type->isFullyQualified()) {
-            $qualifiedName = "\\{$type->toString()}";
-        } else {
-            if (isset($this->aliases[$parts[0]])) {
-                $use = $this->aliases[$parts[0]];
-                $parts[0] = "\\" . $use->getName();
-                $use->markUsed();
-            } else {
-                $parts[0] = $this->namespace . "\\" . $parts[0];
-            }
-
-            $qualifiedName = implode("\\", $parts);
-        }
-        $qualifiedName = $this->cannonicalize($qualifiedName);
+        $qualifiedName = $this->getQualifiedName($type);
 
         $unqualified_error = false;
         if (!$type->isUnqualified() && count(array_filter($parts, 'strlen')) !== 1) {
@@ -250,6 +260,122 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
     }
 
     /**
+     * @return \PHPParser_Node_Stmt_Class
+     */
+    public function getCurrentClass() {
+        foreach ($this->nodeStack as $frame) {
+            if ($frame instanceof \PHPParser_Node_Stmt_Class) {
+                return $frame;
+            }
+        }
+
+        return false;
+    }
+
+    public function inClass($className) {
+        if ($currentClass = $this->getCurrentClass()) {
+            $qualifiedName = $this->getQualifiedName($this->nodeFromString($currentClass->name, $currentClass->getLine()));
+            if ($qualifiedName === $className) {
+                return true;
+            }
+
+            if ($currentClass->extends) {
+                $qualifiedName = $this->getQualifiedName($currentClass->extends);
+
+                if (!class_exists($qualifiedName)) {
+                    return false;
+                }
+
+                $reflection_class = new \ReflectionClass($qualifiedName);
+
+                if ($className === $reflection_class->getName()) {
+                    return true;
+                }
+
+                while ($reflection_class = $reflection_class->getParentClass()) {
+                    if ($className === $reflection_class->getName()) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function resolveClass($class) {
+        if ($class instanceof \PHPParser_Node_Name) {
+            if ($class->parts == ['self']) {
+                $currentClass = $this->getCurrentClass();
+
+                return $this->getQualifiedName($this->nodeFromString($currentClass->name, $class->getLine()));
+            }
+
+            if ($class->parts == ['parent']) {
+                $currentClass = $this->getCurrentClass();
+
+                if (!$currentClass->extends) {
+                    $this->result->error(
+                        ErrorType::UNABLE_TO_RESOLVE_TYPE,
+                        $class->getLine(),
+                        "Cannot resolve parent of $currentClass as it does not extend anything"
+                    );
+                    return null;
+                }
+
+                return $this->getQualifiedName($currentClass->extends);
+            }
+
+            // Could be any derived class, dont bother.
+            if ($class->parts == ['static']) {
+                return null;
+            }
+
+            return $this->getQualifiedName($class);
+        }
+
+        return null;
+    }
+
+    private function validateMethodAccess($line, $class, $method) {
+        if ($class = $this->resolveClass($class)) {
+            if (!$this->inClass($class) && class_exists($class) && method_exists($class, $method)) {
+                $reflection_class = new \ReflectionClass($class);
+
+                if ($reflection_method = $reflection_class->getMethod($method)) {
+                    if (!$reflection_method->isPublic()) {
+                        $this->result->error(
+                            ErrorType::ACCESS_LEVEL,
+                            $line,
+                            "Cannot call $class::$method, $method is not accessible"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    private function validateMethodExists($line, $class, $method) {
+        if ($class = $this->resolveClass($class)) {
+            if (!class_exists($class)) {
+                return;
+            }
+
+            $reflection_class = new \ReflectionClass($class);
+
+            if (!$reflection_class->getMethod($method)) {
+                if (!method_exists($class, $method)) {
+                    $this->result->error(
+                        ErrorType::METHOD_EXISTS,
+                        $line,
+                        "Cannot call $class::$method, $method does not exist"
+                    );
+                }
+            }
+        }
+    }
+
+    /**
      * Called when entering a node.
      *
      * Return value semantics:
@@ -308,6 +434,17 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
                 );
             }
         } else {
+            if ($node instanceof \PHPParser_Node_Expr_New) {
+                $this->validateMethodAccess($node->getLine(), $node->class, '__construct');
+            }
+
+            if ($node instanceof \PHPParser_Node_Expr_StaticCall) {
+                if ($node->name !== '__construct') {
+                    $this->validateMethodExists($node->getLine(), $node->class, $node->name);
+                }
+                $this->validateMethodAccess($node->getLine(), $node->class, $node->name);
+            }
+
             if (isset($node->class) && $node->class instanceof \PHPParser_Node_Name) {
                 $this->resolveType($node->getLine(), $node->class);
             }
@@ -381,7 +518,14 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
                 }
             }
         }
+        $this->nodeStack[] = $node;
     }
+
+    public function leaveNode(PHPParser_Node $node)
+    {
+        array_pop($this->nodeStack);
+    }
+
 
     private function resolveDoctrineComment($line, DoctrineAnnotation $annotation)
     {
