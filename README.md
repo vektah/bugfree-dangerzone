@@ -6,6 +6,7 @@ Bugfree Dangerzone is a PHP namespace validator written in PHP. It uses your aut
  - that all exception catch blocks and type hints have a valid type
  - all doc block types are valid (eg @param Foo $foo)
  - all Doctrine annotations can be resolved (eg @FOobar()) 
+ - access level validation for constructors and static methods
  - Finally that all use statements are actually used.
  
  
