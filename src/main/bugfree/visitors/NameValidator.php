@@ -314,6 +314,10 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
             if ($class->parts == ['parent']) {
                 $currentClass = $this->getCurrentClass();
 
+                if (!$currentClass) {
+                    return null;
+                }
+
                 if (!$currentClass->extends) {
                     $this->result->error(
                         ErrorType::UNABLE_TO_RESOLVE_TYPE,
