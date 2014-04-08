@@ -631,15 +631,19 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
             }
             if (!isset(self::$ignored_types[strtolower($typePart)])) {
                 $all_ok = true;
-                foreach ($typeFixes as $typo => $replacement) {
-                    if (strtolower($typePart) === $typo) {
-                        $all_ok = false;
-                        $reason = "$typo is not a valid type. Please see http://www.phpdoc.org/docs/latest/for-users/phpdoc/types.html for a list of valid types.";
+                $type = $this->nodeFromString($typePart, $line);
+                $qualifiedName = $this->getQualifiedName($type);
+                if (!$this->resolver->isValid($qualifiedName)) {
+                    foreach ($typeFixes as $typo => $replacement) {
+                        if (strtolower($typePart) === $typo) {
+                            $all_ok = false;
+                            $reason = "$typo is not a valid type. Please see http://www.phpdoc.org/docs/latest/for-users/phpdoc/types.html for a list of valid types.";
 
-                        if ($this->result->getConfig()->autoFix) {
-                            $this->result->fix(new StrReplaceFix($line, $reason, $typo, $replacement));
-                        } else {
-                            $this->result->error(ErrorType::COMMON_TYPOS, $line, $reason);
+                            if ($this->result->getConfig()->autoFix) {
+                                $this->result->fix(new StrReplaceFix($line, $reason, $typo, $replacement));
+                            } else {
+                                $this->result->error(ErrorType::COMMON_TYPOS, $line, $reason);
+                            }
                         }
                     }
                 }
