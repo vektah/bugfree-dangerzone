@@ -209,10 +209,6 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
             count($result->getErrors()),
             print_r($result->getErrors(), true)
         );
-
-        foreach ($options['invalid'] as $resolveCall) {
-            Phake::verify($this->resolver)->isValid($resolveCall);
-        }
     }
 
     /**
@@ -627,6 +623,22 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
         $src = "<?php namespace foo;
             /**
              * @param string|integer \$a ggg
+             */
+            function foo(\$a) {}
+        ";
+
+        $result = $this->bugfree->parse('test', $src, $this->resolver);
+
+        $this->assertEquals(0, count($result->getErrors()), print_r($result->getErrors(), true));
+    }
+
+    public function testClassNamePriorityOverPhpDocSuggestions()
+    {
+        Phake::when($this->resolver)->isValid("\\foo\\Amount")->thenReturn(true);
+
+        $src = "<?php namespace foo;
+            /**
+             * @param Amount \$a
              */
             function foo(\$a) {}
         ";
