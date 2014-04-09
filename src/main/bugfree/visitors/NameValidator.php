@@ -308,6 +308,10 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
             if ($class->parts == ['self']) {
                 $currentClass = $this->getCurrentClass();
 
+                if (!$currentClass) {
+                    return null;
+                }
+
                 return $this->getQualifiedName($this->nodeFromString($currentClass->name, $class->getLine()));
             }
 
