@@ -2,6 +2,7 @@
 
 namespace bugfree\config;
 
+use bugfree\ErrorType;
 use vektah\common\json\Json;
 
 class Config
@@ -44,22 +45,16 @@ class Config
         $config->basedir = realpath(dirname($filename));
         $config->emitLevel = new EmitLevel($file['emitLevel']);
 
-        $imports = ['bootstrap', 'autoload'];
-
-        if (!isset($file['autoload'])) {
-            $composer_filename = $config->basedir . '/composer.json';
-            if (file_exists($composer_filename)) {
-                $composer = Json::decode(file_get_contents($composer_filename));
-                if (isset($composer['autoload']['psr-0'])) {
-                    $file['autoload'] = $composer['autoload']['psr-0'];
-                }
+        $composer_filename = $config->basedir . '/composer.json';
+        if (file_exists($composer_filename)) {
+            $composer = Json::decode(file_get_contents($composer_filename));
+            if (isset($composer['autoload']['psr-0'])) {
+                $config->autoload = $composer['autoload']['psr-0'];
             }
         }
 
-        foreach ($imports as $import) {
-            if (isset($file[$import])) {
-                $config->$import = $file[$import];
-            }
+        if (isset($file['bootstrap'])) {
+            $config->bootstrap = $file['bootstrap'];
         }
 
         return $config;
@@ -69,11 +64,17 @@ class Config
     {
         $paths = [];
 
-        foreach ($this->autoload as $namespace => $dir) {
-            if (strlen($dir) === 0  || $dir[0] !== '/') {
-                $dir = $this->basedir . '/' . $dir;
+        foreach ($this->autoload as $namespace => $dirs) {
+            if (!is_array($dirs)) {
+                $dirs = [$dirs];
             }
-            $paths[$namespace] = $dir;
+
+            foreach ($dirs as $dir) {
+                if (strlen($dir) === 0 || $dir[0] !== '/') {
+                    $dir = $this->basedir . '/' . $dir;
+                }
+                $paths[$namespace][] = $dir;
+            }
         }
 
         return $paths;
@@ -95,10 +96,16 @@ class Config
         return $this->configFilename;
     }
 
+    public function isEnabled($type)
+    {
+        $level = $this->emitLevel->$type;
+
+        return $level != ErrorType::SUPPRESS;
+    }
+
     public function save()
     {
         $file = Json::pretty([
-            'autoload' => $this->autoload,
             'bootstrap' => $this->bootstrap,
             'emitLevel' => $this->emitLevel,
         ]);

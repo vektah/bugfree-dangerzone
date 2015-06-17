@@ -78,6 +78,7 @@ class Worker extends Command
             }
 
             try {
+                require_once($file);
                 $rawFileContents = file_get_contents($file);
                 $result = $bugfree->parse($file, $rawFileContents);
             } catch (\Exception $e) {

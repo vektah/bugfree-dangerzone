@@ -14,12 +14,5 @@ interface Resolver
      */
     public function isValid($name);
 
-    /**
-     * @param string $qualified_name
-     *
-     * @return string[] a list of possible matches for fully qualified class names that exist
-     */
-    public function getPossibleClasses($qualified_name);
-
     const _CLASS = __CLASS__;
 }

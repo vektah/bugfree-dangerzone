@@ -81,25 +81,6 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
         $this->annotationParser = new PhpAnnotationParser();
     }
 
-    private function addUse($newUseString, $reason) {
-        $lastUse = $this->getLastUseLine();
-
-        // If there are no uses add it after the namespace line (if there is one)
-        if ($lastUse < $this->namespaceLine) {
-            // Add an empty line after namespace before uses
-            $this->result->fix(new AddLineFix($this->namespaceLine + 1, $reason, ''));
-            $lastUse = $this->namespaceLine + 1;
-        }
-
-        $newUseNode = new UseStatement($this->nodeFromString($newUseString, $lastUse + 1));
-        $newUseNode->setLine($lastUse + 1);
-        $this->useStatements[] = $newUseNode;
-        $newUseTracker = new UseTracker($newUseNode->alias, (string)$newUseNode->name, $newUseNode);
-        $newUseTracker->markUsed();
-        $this->aliases[$newUseNode->name->getLast()] = $newUseTracker;
-        $this->result->fix(new AddLineFix($newUseNode->getLine(), $reason, "use $newUseString;"));
-    }
-
     /**
      * @param string $classname
      *
@@ -182,47 +163,16 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
 
         // Now that we know the qualified name lets make sure its valid.
         if (!$this->resolver->isValid($qualifiedName)) {
-            $possibleClasses = $this->resolver->getPossibleClasses($qualifiedName);
-
-            // If we could automatically fix the unqualified use we would have by now so only fix unqualified uses.
-            if ($autofix && count($possibleClasses) === 1) {
-
-                $reason = "$qualifiedName could not be resolved, assuming $possibleClasses[0]";
-                if (!$type->isUnqualified()) {
-                    // If its not included then we can only add it
-                    // if the name is not already aliased and it is not already declared in the namespace.
-                    if (!isset($this->aliases[$type->getLast()]) && !$this->resolver->isValid($this->namespace . '\\' . $type->getLast())) {
-                        $this->result->fix(new StrReplaceFix($type->getLine(), $reason, $type->__toString(), $type->getLast()));
-                        $this->addUse($possibleClasses[0], $reason);
-                        return;
-                    }
-
-                    // Or if the thing its probably referring to is already included just make it a relative name
-                    if (isset($this->aliases[$type->getLast()]) && $this->aliases[$type->getLast()]->getName() === $possibleClasses[0]) {
-                        $this->result->fix(new StrReplaceFix($type->getLine(), $reason, $type->__toString(), $type->getLast()));
-                        return;
-                    }
-                } else {
-                    $this->addUse($possibleClasses[0], $reason);
-                    return;
-                }
-            }
-
             if ($in_comment) {
                 $level = ErrorType::UNABLE_TO_RESOLVE_TYPE_IN_COMMENT;
             } else {
                 $level = ErrorType::UNABLE_TO_RESOLVE_TYPE;
             }
 
-            $suggestions = '';
-            if ($possibleClasses) {
-                $suggestions = "Perhaps you meant on of these? \n  - " . implode("\n  - ", $possibleClasses) . "\n";
-            }
-
             $this->result->error(
                 $level,
                 $line,
-                "Type '$qualifiedName' could not be resolved. $suggestions"
+                "Type '$qualifiedName' could not be resolved."
             );
         }
 
@@ -364,6 +314,9 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
     }
 
     private function validateMethodExists($line, $class, $method) {
+        if (!$this->result->getConfig()->isEnabled(ErrorType::METHOD_EXISTS)) {
+            return;
+        }
         if ($class = $this->resolveClass($class)) {
             if (!class_exists($class)) {
                 return;

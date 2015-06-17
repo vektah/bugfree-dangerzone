@@ -54,6 +54,10 @@ class XUnitFormatter implements OutputFormatter
         $warning_count = 0;
 
         foreach ($errors as $error) {
+            if (!is_object($error)) {
+                die(gettype($error));
+            }
+
             if ($error->severity == ErrorType::ERROR) {
                 $error_count++;
                 $this->errors[] = $error;
