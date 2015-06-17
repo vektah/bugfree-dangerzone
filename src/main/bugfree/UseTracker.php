@@ -3,6 +3,8 @@
 namespace bugfree;
 
 
+use PhpParser\Node;
+
 class UseTracker
 {
     /** @var string $name the fully qualified class or namespace */
@@ -11,13 +13,13 @@ class UseTracker
     /** @var string $alias the alias that this uses, usually the last part of the namespace, unless explicity defined */
     private $alias;
 
-    /** @var \PHPParser_Node */
+    /** @var Node */
     private $node;
 
     /** @var int a counter for the number of times this use has been used. */
     private $useCount = 0;
 
-    public function __construct($alias, $name, \PHPParser_Node $node)
+    public function __construct($alias, $name, Node $node)
     {
         $this->alias = $alias;
         $this->name = $name;
@@ -41,7 +43,7 @@ class UseTracker
     }
 
     /**
-     * @return \PHPParser_Node
+     * @return Node
      */
     public function getNode()
     {

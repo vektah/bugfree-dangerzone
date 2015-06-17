@@ -3,17 +3,29 @@
 namespace bugfree\visitors;
 
 
-use PHPParser_Node;
-use PHPParser_Node_Stmt_UseUse as UseStatement;
 use bugfree\ErrorType;
 use bugfree\Resolver;
 use bugfree\Result;
 use bugfree\UseTracker;
-use bugfree\fix\AddLineFix;
 use bugfree\fix\RemoveLineFix;
 use bugfree\fix\StrReplaceFix;
 use bugfree\fix\SwapLineFix;
 use bugfree\helper\UseStatementOrganizer;
+use PhpParser\Comment;
+use PhpParser\Node;
+use PhpParser\NodeVisitorAbstract;
+use PhpParser\Node\Name;
+use PhpParser\Node\Expr\New_;
+use PhpParser\Node\Expr\StaticCall;
+use PhpParser\Node\Expr\Variable;
+use PhpParser\Node\Name\FullyQualified;
+use PhpParser\Node\Stmt\Class_;
+use PhpParser\Node\Stmt\ClassMethod;
+use PhpParser\Node\Stmt\Function_;
+use PhpParser\Node\Stmt\Namespace_;
+use PhpParser\Node\Stmt\Property;
+use PhpParser\Node\Stmt\Use_;
+use PhpParser\Node\Stmt\UseUse;
 use vektah\parser_combinator\language\php\annotation\ConstLookup;
 use vektah\parser_combinator\language\php\annotation\DoctrineAnnotation;
 use vektah\parser_combinator\language\php\annotation\NonDoctrineAnnotation;
@@ -24,7 +36,7 @@ use vektah\parser_combinator\language\php\annotation\PhpAnnotationParser;
  *  - throws up warnings and errors when things smell a little fishy rather then parse errors.
  *  - Uses a resolver to work out if the given use is valid within your project, ideally by using your PSR-0 autoloader.
  */
-class NameValidator extends \PHPParser_NodeVisitorAbstract
+class NameValidator extends NodeVisitorAbstract
 {
     /** @var Resolver */
     private $resolver = null;
@@ -37,7 +49,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
     /** @var UseTracker[] UseTrackers keyed on alias */
     private $aliases = [];
 
-    /** @var \PHPParser_Node_Stmt_UseUse[] */
+    /** @var UseUse[] */
     private $useStatements = [];
 
     /** @var Result */
@@ -46,7 +58,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
     /** @var PhpAnnotationParser */
     private $annotationParser;
 
-    /** @var \PHPParser_Node[] $node */
+    /** @var Node[] $node */
     private $nodeStack = [];
 
     private static $ignored_types = [
@@ -107,7 +119,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
         return implode('\\', array_filter(explode('\\', $classname), 'strlen'));
     }
 
-    private function getQualifiedName(\PHPParser_Node_Name $type) {
+    private function getQualifiedName(Name $type) {
         $parts = $type->parts;
 
         if ($type->isFullyQualified()) {
@@ -128,10 +140,10 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
 
     /**
      * @param int $line    The statement that this class was referenced in for error generation.
-     * @param \PHPParser_Node_Name $type    The class to resolve.
+     * @param Name $type    The class to resolve.
      * @param boolean $in_comment           If the type was found in a comment
      */
-    private function resolveType($line, \PHPParser_Node_Name $type, $in_comment = false)
+    private function resolveType($line, Name $type, $in_comment = false)
     {
         $qualifiedName = null;
         $parts = $type->parts;
@@ -199,9 +211,9 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
      *  * null:      $nodes stays as-is
      *  * otherwise: $nodes is set to the return value
      *
-     * @param \PHPParser_Node[] $nodes Array of nodes
+     * @param Node[] $nodes Array of nodes
      *
-     * @return null|\PHPParser_Node[] Array of nodes
+     * @return null|Node[] Array of nodes
      */
     public function beforeTraverse(array $nodes)
     {
@@ -210,11 +222,11 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
     }
 
     /**
-     * @return \PHPParser_Node_Stmt_Class
+     * @return Class_
      */
     public function getCurrentClass() {
         foreach ($this->nodeStack as $frame) {
-            if ($frame instanceof \PHPParser_Node_Stmt_Class) {
+            if ($frame instanceof Class_) {
                 return $frame;
             }
         }
@@ -254,7 +266,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
     }
 
     private function resolveClass($class) {
-        if ($class instanceof \PHPParser_Node_Name) {
+        if ($class instanceof Name) {
             if ($class->parts == ['self']) {
                 $currentClass = $this->getCurrentClass();
 
@@ -343,19 +355,19 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
      *  * null:      $node stays as-is
      *  * otherwise: $node is set to the return value
      *
-     * @param \PHPParser_Node $node Node
+     * @param Node $node
      *
-     * @return null|\PHPParser_Node Node
+     * @return null|Node
      */
-    public function enterNode(\PHPParser_Node $node)
+    public function enterNode(Node $node)
     {
-        if ($node instanceof \PHPParser_Node_Stmt_Namespace) {
+        if ($node instanceof Namespace_) {
             $this->namespace = '\\' . $node->name;
             $this->namespaceLine = $node->getLine();
-        } elseif ($node instanceof \PHPParser_Node_Stmt_Use) {
+        } elseif ($node instanceof Use_) {
             $use_count = 0;
             foreach ($node->uses as $use) {
-                if ($use instanceof \PHPParser_Node_Stmt_UseUse) {
+                if ($use instanceof UseUse) {
                     if (!$this->resolver->isValid("\\{$use->name}")) {
                         $this->result->error(
                             ErrorType::UNABLE_TO_RESOLVE_USE,
@@ -395,18 +407,18 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
                 );
             }
         } else {
-            if ($node instanceof \PHPParser_Node_Expr_New) {
+            if ($node instanceof New_) {
                 $this->validateMethodAccess($node->getLine(), $node->class, '__construct');
             }
 
-            if ($node instanceof \PHPParser_Node_Expr_StaticCall) {
+            if ($node instanceof StaticCall) {
                 if ($node->name !== '__construct') {
                     $this->validateMethodExists($node->getLine(), $node->class, $node->name);
                 }
                 $this->validateMethodAccess($node->getLine(), $node->class, $node->name);
             }
 
-            if (isset($node->class) && $node->class instanceof \PHPParser_Node_Name) {
+            if (isset($node->class) && $node->class instanceof Name) {
                 $this->resolveType($node->getLine(), $node->class);
             }
 
@@ -423,7 +435,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
             }
 
             if (isset($node->extends)) {
-                if ($node->extends instanceof \PHPParser_Node_Name) {
+                if ($node->extends instanceof Name) {
                     $this->resolveType($node->getLine(), $node->extends);
                 } else {
                     foreach ($node->extends as $extends) {
@@ -432,17 +444,17 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
                 }
             }
 
-            if (isset($node->type) && $node->type instanceof \PHPParser_Node_Name) {
+            if (isset($node->type) && $node->type instanceof Name) {
                 $this->resolveType($node->getLine(), $node->type);
             }
 
-            if ($node instanceof \PHPParser_Node_Stmt_ClassMethod or
-                $node instanceof \PHPParser_Node_Stmt_Function or
-                $node instanceof \PHPParser_Node_Stmt_Property or
-                $node instanceof \PHPParser_Node_Stmt_Class or
-                $node instanceof \PHPParser_Node_Expr_Variable) {
+            if ($node instanceof ClassMethod or
+                $node instanceof Function_ or
+                $node instanceof Property or
+                $node instanceof Class_ or
+                $node instanceof Variable) {
 
-                /** @var $docblock \PHPParser_Comment_Doc */
+                /** @var $docblock Doc */
                 if ($docblock = $node->getDocComment()) {
                     $annotations = $this->annotationParser->parseString($docblock->getText());
 
@@ -458,7 +470,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
             }
 
             // eclipse can only handle inline type hints in a normal comment block
-            if ($node instanceof \PHPParser_Node_Expr_Variable) {
+            if ($node instanceof Variable) {
                 $comments = $node->getAttribute('comments');
 
                 if (is_array($comments)) {
@@ -467,7 +479,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
                     $eclipseInlineTypeHintRegex = '~^/\\* @var \\$' . $phpVariableRegex . ' (\\\\?' . $phpVariableRegex . '(\\\\' . $phpVariableRegex . ')*) \\*/$~';
 
                     foreach ($comments as $comment) {
-                        /* @var $comment \PHPParser_Comment */
+                        /* @var $comment Comment */
                         $matches = [];
                         $match = preg_match($eclipseInlineTypeHintRegex, $comment->getText(), $matches);
 
@@ -482,7 +494,7 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
         $this->nodeStack[] = $node;
     }
 
-    public function leaveNode(PHPParser_Node $node)
+    public function leaveNode(Node $node)
     {
         array_pop($this->nodeStack);
     }
@@ -615,26 +627,14 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
     private function nodeFromString($str, $line)
     {
         if (strlen($str) > 0 && $str[0] == '\\') {
-            $node = new \PHPParser_Node_Name_FullyQualified($str);
+            $node = new FullyQualified($str);
         } else {
-            $node = new \PHPParser_Node_Name($str);
+            $node = new Name($str);
         }
 
         $node->setLine($line);
 
         return $node;
-    }
-
-    private function getLastUseLine() {
-        $last_line = 0;
-
-        foreach ($this->useStatements as $use) {
-            if ($last_line < $use->getLine()) {
-                $last_line = $use->getLine();
-            }
-        }
-
-        return $last_line;
     }
 
     /**
@@ -644,9 +644,9 @@ class NameValidator extends \PHPParser_NodeVisitorAbstract
      *  * null:      $nodes stays as-is
      *  * otherwise: $nodes is set to the return value
      *
-     * @param \PHPParser_Node[] $nodes Array of nodes
+     * @param Node[] $nodes Array of nodes
      *
-     * @return null|\PHPParser_Node[] Array of nodes
+     * @return null|Node[] Array of nodes
      */
     public function afterTraverse(array $nodes)
     {

@@ -2,10 +2,6 @@
 
 namespace bugfree;
 
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
-use RecursiveRegexIterator;
-use RegexIterator;
 use bugfree\config\Config;
 
 /**

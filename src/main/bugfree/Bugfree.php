@@ -4,6 +4,9 @@ namespace bugfree;
 
 use bugfree\config\Config;
 use bugfree\visitors\NameValidator;
+use PhpParser\Lexer;
+use PhpParser\NodeTraverser;
+use PhpParser\Parser;
 
 /**
  * Parses a file for errors when constructed.
@@ -42,11 +45,11 @@ class Bugfree
     public function parse($name, $source)
     {
         $result = new Result($name, $this->config);
-        $parser = new \PHPParser_Parser(new \PHPParser_Lexer());
+        $parser = new Parser(new Lexer());
 
         $nodes = $parser->parse($source);
 
-        $traverser = new \PHPParser_NodeTraverser();
+        $traverser = new NodeTraverser();
         $traverser->addVisitor(new NameValidator($result, $this->resolver));
         $traverser->traverse($nodes);
 

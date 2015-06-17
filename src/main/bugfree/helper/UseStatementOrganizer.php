@@ -3,7 +3,7 @@
 namespace bugfree\helper;
 
 
-use PHPParser_Node_Stmt_UseUse as UseStatement;
+use PhpParser\Node\Stmt\UseUse;
 
 /**
  * Checks if use statements are organized and determines what is required to
@@ -11,17 +11,17 @@ use PHPParser_Node_Stmt_UseUse as UseStatement;
  */
 class UseStatementOrganizer
 {
-    /** @var UseStatement[] */
+    /** @var UseUse[] */
     private $useStatements = [];
 
-    /** @var UseStatement[] */
+    /** @var UseUse[] */
     private $organizedUseStatements = [];
 
     /** @var array */
     private $lineNumberMovements = null;
 
     /**
-     * @param UseStatement[] $useStatements An array of use statements in the order they are defined
+     * @param UseUse[] $useStatements An array of use statements in the order they are defined
      */
     public function __construct(array $useStatements)
     {
@@ -29,7 +29,7 @@ class UseStatementOrganizer
         $this->organizedUseStatements = $this->getOrganizedUseStatements();
     }
 
-    public static function compareUse(UseStatement $a, UseStatement $b) {
+    public static function compareUse(UseUse $a, UseUse $b) {
         $aParts = $a->name->parts;
         $aNumParts = count($aParts);
         $bParts = $b->name->parts;
@@ -80,7 +80,7 @@ class UseStatementOrganizer
     }
 
     /**
-     * @return UseStatement[]
+     * @return UseUse[]
      */
     private function getOrganizedUseStatements()
     {
@@ -106,7 +106,7 @@ class UseStatementOrganizer
     }
 
     /**
-     * @param UseStatement[] $useStatements
+     * @param UseUse[] $useStatements
      * @return array
      */
     private function useStatementsToString(array $useStatements)
@@ -166,7 +166,7 @@ class UseStatementOrganizer
     }
 
     /**
-     * @param UseStatement[] $useStatements
+     * @param UseUse[] $useStatements
      * @return array
      */
     private function useStatementsToLineNumbers(array $useStatements)

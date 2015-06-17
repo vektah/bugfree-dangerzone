@@ -2,7 +2,8 @@
 
 namespace bugfree\helper;
 
-use Phake;
+use PhpParser\Node\Name;
+use PhpParser\Node\Stmt\UseUse;
 
 class UseStatementOrganizerTest extends \PHPUnit_Framework_TestCase
 {
@@ -144,21 +145,14 @@ class UseStatementOrganizerTest extends \PHPUnit_Framework_TestCase
     private function getMockUseStatement($namepace, $line = 0, $alias = null)
     {
         $parts = explode("\\", $namepace);
-        $lastPart = $parts[count($parts) - 1];
 
         if (!$alias) {
             $alias = $parts[count($parts) - 1];
         }
+        $name = new Name($parts);
 
-        $name = Phake::mock("PHPParser_Node_Name");
-        Phake::when($name)->__get("parts")->thenReturn($parts);
-        Phake::when($name)->toString()->thenReturn($namepace);
-
-        $useStatement = Phake::mock("PHPParser_Node_Stmt_UseUse");
-        Phake::when($useStatement)->__get("name")->thenReturn($name);
-        Phake::when($useStatement)->__get("alias")->thenReturn($alias);
-        Phake::when($useStatement)->getLine()->thenReturn($line);
-
-        return $useStatement;
+        return new UseUse($name, $alias, [
+            'startLine' => $line
+        ]);
     }
 }
