@@ -16,7 +16,7 @@ use PhpParser\Parser;
  */
 class Bugfree
 {
-    const VERSION = '0.3.9';
+    const VERSION = '0.4.1';
 
     /** @var Resolver */
     private $resolver;
