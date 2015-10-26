@@ -26,6 +26,14 @@ use bugfree\cli\Worker;
 use Symfony\Component\Console\Application;
 
 function exception_error_handler($errno, $errstr, $errfile, $errline) {
+    
+    if (!(error_reporting() & $errno)) {
+        /*
+         * Ignore any errors for which error reporting is disabled.
+         */
+        return;
+    }
+    
     if (!preg_match('/PHPParser/', $errfile)) {
         throw new ErrorException($errstr, 0, $errno, $errfile, $errline);
     }
