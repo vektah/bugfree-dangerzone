@@ -3,6 +3,7 @@
 namespace bugfree\helper;
 
 use PhpParser\Node\Name;
+use PhpParser\Node\Stmt\Use_;
 use PhpParser\Node\Stmt\UseUse;
 
 class UseStatementOrganizerTest extends \PHPUnit_Framework_TestCase
@@ -134,7 +135,7 @@ class UseStatementOrganizerTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @expectedException BadMethodCallException
+     * @expectedException \BadMethodCallException
      */
     public function testGetLineNumberMappingWithoutLineSwap()
     {
@@ -151,7 +152,7 @@ class UseStatementOrganizerTest extends \PHPUnit_Framework_TestCase
         }
         $name = new Name($parts);
 
-        return new UseUse($name, $alias, [
+        return new UseUse($name, $alias, $type = Use_::TYPE_UNKNOWN, [
             'startLine' => $line
         ]);
     }
