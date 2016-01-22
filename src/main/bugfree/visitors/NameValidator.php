@@ -448,6 +448,10 @@ class NameValidator extends NodeVisitorAbstract
                 $this->resolveType($node->getLine(), $node->type);
             }
 
+            if ($node instanceof ClassMethod && $node->getReturnType() instanceof Name) {
+                $this->resolveType($node->getLine(), $node->getReturnType());
+            }
+
             if ($node instanceof ClassMethod or
                 $node instanceof Function_ or
                 $node instanceof Property or

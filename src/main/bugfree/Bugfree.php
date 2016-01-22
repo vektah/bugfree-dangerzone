@@ -6,7 +6,7 @@ use bugfree\config\Config;
 use bugfree\visitors\NameValidator;
 use PhpParser\Lexer;
 use PhpParser\NodeTraverser;
-use PhpParser\Parser;
+use PhpParser\ParserFactory;
 
 /**
  * Parses a file for errors when constructed.
@@ -45,7 +45,7 @@ class Bugfree
     public function parse($name, $source)
     {
         $result = new Result($name, $this->config);
-        $parser = new Parser(new Lexer());
+        $parser = (new ParserFactory())->create(ParserFactory::PREFER_PHP7, new Lexer());
 
         $nodes = $parser->parse($source);
 
