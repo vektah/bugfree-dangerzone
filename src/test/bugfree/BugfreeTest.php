@@ -8,9 +8,10 @@ use bugfree\config\Config;
 
 class BugfreeTest extends \PHPUnit_Framework_TestCase
 {
+    /** @var Resolver */
     private $resolver;
 
-    /** @var  Bugfree */
+    /** @var Bugfree */
     private $bugfree;
 
     public function setUp()
@@ -40,7 +41,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
 
     public function testNamespaceError()
     {
-        $result = $this->bugfree->parse('test', '<?php use asdf,hjkl;', $this->resolver);
+        $result = $this->bugfree->parse('test', '<?php use asdf,hjkl;');
         // Make sure no namespace raises an error
         $this->assertErrorWithMessage($result->getErrors(), 'Every source file should have a namespace');
 
@@ -50,7 +51,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
 
     public function testMultiPartUseWarning()
     {
-        $result = $this->bugfree->parse('test', '<?php namespace foo; use asdf, hjkl;', $this->resolver);
+        $result = $this->bugfree->parse('test', '<?php namespace foo; use asdf, hjkl;');
         $this->assertErrorWithMessage($result->getErrors(), 'Multiple uses in one statement is discouraged');
     }
 
@@ -58,14 +59,14 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     {
         Phake::when($this->resolver)->isValid('\asdf')->thenReturn(false);
 
-        $result = $this->bugfree->parse('test', '<?php namespace foo; use asdf, hjkl;', $this->resolver);
+        $result = $this->bugfree->parse('test', '<?php namespace foo; use asdf, hjkl;');
 
         $this->assertErrorWithMessage($result->getErrors(), "Use '\\asdf' could not be resolved");
     }
 
     public function testUnusedUse()
     {
-        $result = $this->bugfree->parse('test', '<?php namespace foo; use asdf;', $this->resolver);
+        $result = $this->bugfree->parse('test', '<?php namespace foo; use asdf;');
 
         $this->assertErrorWithMessage($result->getErrors(), "Use 'asdf' is not being used");
     }
@@ -76,7 +77,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
             use foo\bar\Blah;
             $blah = new Blah();
         ';
-        $result = $this->bugfree->parse('test', $src, $this->resolver);
+        $result = $this->bugfree->parse('test', $src);
 
         $this->assertErrorWithMessage($result->getErrors(), "Use 'foo\bar\Blah' is automatically included as it is in the same namespace");
     }
@@ -87,7 +88,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
             use asdf;
             use foo\asdf;
         ';
-        $result = $this->bugfree->parse('test', $src, $this->resolver);
+        $result = $this->bugfree->parse('test', $src);
 
         $this->assertErrorWithMessage($result->getErrors(), "Alias 'asdf' is already in use on line 2");
     }
@@ -101,7 +102,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
              */
             function foo() {}
         ';
-        $result = $this->bugfree->parse('test', $src, $this->resolver);
+        $result = $this->bugfree->parse('test', $src);
 
         $this->assertEquals([], $result->getErrors());
 
@@ -122,7 +123,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
         }
         ";
 
-        $result = $this->bugfree->parse('test', $src, $this->resolver);
+        $result = $this->bugfree->parse('test', $src);
 
         $this->assertErrorWithMessage($result->getErrors(), "Type 'foo\\Foo' could not be resolved");
         $this->assertErrorWithMessage($result->getErrors(), "Type 'baz\\Baz' could not be resolved");
@@ -193,13 +194,13 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
         ];
     }
 
-    private function verifySource($src, $options)
+    private function verifySource($src, array $options)
     {
         foreach ($options['invalid'] as $invalid) {
             Phake::when($this->resolver)->isValid($invalid)->thenReturn(false);
         }
 
-        $result = $this->bugfree->parse('test', $src, $this->resolver);
+        $result = $this->bugfree->parse('test', $src);
 
         foreach ($options['errors'] as $error) {
             $this->assertErrorWithMessage($result->getErrors(), $error);
@@ -230,7 +231,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider useProvider
      */
-    public function testClassImplements($options)
+    public function testClassImplements(array $options)
     {
 
         $src = "<?php namespace testns;
@@ -247,7 +248,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider useProvider
      */
-    public function testClassExtends($options)
+    public function testClassExtends(array $options)
     {
         $src = "<?php namespace testns;
         use foo\\bar\\baz;
@@ -264,7 +265,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider useProvider
      */
-    public function testMethod($options)
+    public function testMethod(array $options)
     {
         $src = "<?php namespace testns;
         use foo\\bar\\baz;
@@ -282,7 +283,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider useProvider
      */
-    public function testCatch($options)
+    public function testCatch(array $options)
     {
         $src = "<?php namespace testns;
         use foo\\bar\\baz;
@@ -300,7 +301,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider useProvider
      */
-    public function testThrow($options)
+    public function testThrow(array $options)
     {
         $src = "<?php namespace testns;
         use foo\\bar\\baz;
@@ -316,7 +317,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider useProvider
      */
-    public function testThrowStatic($options)
+    public function testThrowStatic(array $options)
     {
         $src = "<?php namespace testns;
         use foo\\bar\\baz;
@@ -337,7 +338,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider useProvider
      */
-    public function testNew($options)
+    public function testNew(array $options)
     {
         $src = "<?php namespace testns;
         use foo\\bar\\baz;
@@ -353,7 +354,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider useProvider
      */
-    public function testConstant($options)
+    public function testConstant(array $options)
     {
         $src = "<?php namespace testns;
         use foo\\bar\\baz;
@@ -369,7 +370,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider useProvider
      */
-    public function testConstantInFunctionCall($options)
+    public function testConstantInFunctionCall(array $options)
     {
         $src = "<?php namespace testns;
         use foo\\bar\\baz;
@@ -385,7 +386,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider useProvider
      */
-    public function testConstantInStaticMethodCall($options)
+    public function testConstantInStaticMethodCall(array $options)
     {
         $src = "<?php namespace testns;
         use foo\\bar\\baz;
@@ -401,7 +402,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider useProvider
      */
-    public function testConstantInInstanceMethodCall($options)
+    public function testConstantInInstanceMethodCall(array $options)
     {
         $src = "<?php namespace testns;
         use foo\\bar\\baz;
@@ -418,7 +419,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider useProvider
      */
-    public function testUseResolutionInFunctionDocBlockTypeHint($options)
+    public function testUseResolutionInFunctionDocBlockTypeHint(array $options)
     {
         $src = "<?php namespace testns;
         use foo\\bar\\baz;
@@ -437,7 +438,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider useProvider
      */
-    public function testUseResolutionInFunctionDocBlockReturnTypeHint($options)
+    public function testUseResolutionInFunctionDocBlockReturnTypeHint(array $options)
     {
         $src = "<?php namespace testns;
         use foo\\bar\\baz;
@@ -456,7 +457,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider useProvider
      */
-    public function testUseResolutionInFunctionDocBlockTypeHintArraySyntax($options)
+    public function testUseResolutionInFunctionDocBlockTypeHintArraySyntax(array $options)
     {
         $src = "<?php namespace testns;
         use foo\\bar\\baz;
@@ -475,7 +476,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     /**
     * @dataProvider useProvider
     */
-    public function testUseResolutionInAtVarAnnotationSyntax($options)
+    public function testUseResolutionInAtVarAnnotationSyntax(array $options)
     {
         $src = "<?php namespace testns;
         use foo\\bar\\baz;
@@ -494,7 +495,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     /**
     * @dataProvider useProvider
     */
-    public function testUseResolutionInAtVarAnnotationSyntaxOnClassPrivates($options)
+    public function testUseResolutionInAtVarAnnotationSyntaxOnClassPrivates(array $options)
     {
         $src = "<?php namespace testns;
         use foo\\bar\\baz;
@@ -515,7 +516,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider useProvider
      */
-    public function testUseResolutionInTraitUse($options)
+    public function testUseResolutionInTraitUse(array $options)
     {
         $src = "<?php namespace testns;
         use foo\\bar\\baz;
@@ -533,7 +534,7 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider useProvider
      */
-    public function testEclipseInlineTypeHint($options)
+    public function testEclipseInlineTypeHint(array $options)
     {
         $src = "<?php namespace testns;
             use foo\\bar\\baz;
@@ -551,6 +552,40 @@ class BugfreeTest extends \PHPUnit_Framework_TestCase
             }
         ";
 
+        $this->verifySource($src, $options);
+    }
+
+    public static function multipleCatchProvider() {
+        return [
+            [[
+                'invalid'   => ['Thing'],
+                'types'     => ['\Thing', 'Thing'],
+                'errors'    => ["Type 'Thing' could not be resolved"],
+            ]],
+            [[
+                'invalid'   => [],
+                'types'     => ['\Thing', 'Thing'],
+                'errors'    => [],
+            ]],
+        ];
+    }
+
+    /**
+     * @dataProvider multipleCatchProvider
+     */
+    public function testMultipleCatch(array $options)
+    {
+        $types = join(' | ', $options['types']);
+        $src = "<?php namespace testns;
+        use foo\\bar\\baz;
+        use foo\\Thing;
+
+        function doNotWarnAboutUnused(baz \$a, Thing \$b) {}
+
+        try {
+
+        } catch({$types} \$e) {}
+        ";
         $this->verifySource($src, $options);
     }
 
