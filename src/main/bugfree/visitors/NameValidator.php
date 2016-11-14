@@ -19,6 +19,7 @@ use PhpParser\Node\Expr\New_;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Name\FullyQualified;
+use PhpParser\Node\Stmt\Catch_;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Function_;
@@ -470,6 +471,12 @@ class NameValidator extends NodeVisitorAbstract
                         }
 
                     }
+                }
+            }
+
+            if ($node instanceof Catch_) {
+                foreach ($node->types as $type) {
+                    $this->resolveType($node->getLine(), $type);
                 }
             }
 

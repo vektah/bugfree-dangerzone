@@ -14,8 +14,8 @@
     ],
 
     "require": {
-        "php": ">=5.4.0",
-        "nikic/php-parser": "^2.0.0",
+        "php": ">=5.5.0",
+        "nikic/php-parser": "3.0.*@beta || ^3.0",
         "symfony/console": "*",
         "doctrine/annotations": "*",
         "vektah/common": "*",
